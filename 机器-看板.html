@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>机器</title>
+  <style>
+    :root {
+      --bg: #141414;
+      --card: #1c1c1c;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --axis: #8a8a8a;
+      --grid: #2a2a2a;
+      --stroke: #2f2f2f;
+      --blue: #4da3ff;
+      --green: #3ddc84;
+      --yellow: #f5c518;
+      --red: #ff5c5c;
+      --purple: #b07aff;
+      --orange: #f0a040;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    h1 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+    .sub { font-size: 12px; color: var(--muted); }
+    .title-right { display: flex; align-items: center; gap: 10px; }
+    .export-btn {
+      font: inherit;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .export-btn:hover { border-color: #555; }
+    .export-btn:disabled { color: var(--muted); cursor: wait; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .stat .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; white-space: nowrap; }
+    .stat .value { font-size: 20px; font-weight: 650; line-height: 26px; }
+    .stat .label, .stat .dir { font-size: 12px; line-height: 16px; white-space: nowrap; }
+    .stat .label { color: var(--muted); }
+    .stat .vs { font-size: 10px; line-height: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat .dir { font-weight: 650; }
+    .stat.warning .value { color: var(--orange); }
+    .stat.success .value { color: var(--green); }
+    .stat.info .value { color: var(--blue); }
+    .stat.danger .value { color: var(--red); }
+    .up { color: var(--red); }
+    .down { color: var(--green); }
+    .flat { color: var(--muted); }
+    .section { display: flex; flex-direction: column; gap: 6px; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .section-title { font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .legend { display: flex; justify-content: flex-end; gap: 14px; flex-wrap: wrap; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .dot { width: 10px; height: 10px; border-radius: 5px; display: inline-block; flex-shrink: 0; }
+    svg { width: 100%; height: auto; display: block; }
+    .note { font-size: 11px; color: var(--muted); line-height: 17px; }
+    .note b { color: var(--yellow); font-weight: 600; }
+
+    .multiples { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .pcard {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 8px 10px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .pcard .head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .pcard .name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+    .pcard .unit { flex-shrink: 0; font-size: 10px; font-weight: 500; color: var(--yellow); padding: 0 4px; border: 1px solid #3a3a3a; border-radius: 4px; }
+    .pcard .share { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .pcard .kpi { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+    .pcard .kpi-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .pcard .kpi .v { font-size: 16px; font-weight: 650; line-height: 1.2; }
+    .pcard .kpi-cny { font-size: 10.5px; font-weight: 500; color: var(--muted); line-height: 1.2; white-space: nowrap; }
+    .pcard .kpi .d { font-size: 11px; font-weight: 650; white-space: nowrap; }
+    .pcard .kpi .d-label { color: var(--muted); font-weight: 400; }
+    .pcard .foot { display: flex; justify-content: space-between; gap: 8px; font-size: 10.5px; color: var(--muted); padding-top: 4px; border-top: 1px solid var(--grid); }
+    .cmp { display: flex; flex-direction: column; gap: 4px; }
+    .cmp-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 6px; align-items: center; font-size: 10.5px; color: var(--muted); }
+    .cmp-row .track { position: relative; height: 6px; background: #262626; border-radius: 3px; }
+    .cmp-row .track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 6px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+    th { color: var(--muted); font-weight: 500; font-size: 11px; cursor: pointer; user-select: none; }
+    th:hover { color: var(--text); }
+    th.sorted { color: var(--text); }
+    th.grp { cursor: default; text-align: center; font-size: 11px; font-weight: 650; padding: 5px 8px; border-bottom: none; }
+    th.grp.g-cost { color: var(--blue); box-shadow: inset 0 2px 0 var(--blue); }
+    th.grp.g-card { color: var(--yellow); box-shadow: inset 0 2px 0 var(--yellow); }
+    th.grp.g-unit { color: var(--purple); box-shadow: inset 0 2px 0 var(--purple); }
+    .g-cost { background: rgba(77, 163, 255, 0.08); }
+    .g-card { background: rgba(245, 197, 24, 0.07); }
+    .g-unit { background: rgba(176, 122, 255, 0.09); }
+    tbody tr:hover td.g-cost { background: rgba(77, 163, 255, 0.14); }
+    tbody tr:hover td.g-card { background: rgba(245, 197, 24, 0.12); }
+    tbody tr:hover td.g-unit { background: rgba(176, 122, 255, 0.15); }
+    th:first-child, td:first-child { text-align: left; }
+    th.nosort { cursor: default; }
+    th.nosort:hover { color: var(--muted); }
+    tbody tr:hover { background: #1a1a1a; }
+    tfoot td { font-weight: 650; border-top: 1px solid var(--stroke); border-bottom: none; }
+    tr.row-sum td { font-weight: 650; border-top: 1px solid var(--stroke); background: rgba(245, 197, 24, 0.06); }
+    tr.row-cost td { font-weight: 650; background: rgba(77, 163, 255, 0.08); }
+    .table-wrap { background: var(--card); border: 1px solid var(--stroke); border-radius: 8px; padding: 4px 6px; overflow-x: auto; }
+    .cell-bar { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+    .bar { position: relative; width: 120px; height: 6px; background: #262626; border-radius: 3px; }
+    .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+    .bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #e8e8e8; opacity: 0.7; }
+    .cell-bar .sm, .subline { font-size: 10.5px; color: var(--muted); font-weight: 400; }
+    td .name-main { font-weight: 600; }
+    .acct { display: flex; flex-direction: column; gap: 1px; }
+    .acct .subline { font-weight: 400; }
+
+    @media (max-width: 900px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .multiples { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title-row">
+      <h1>机器</h1>
+      <div class="title-right">
+        <span class="sub">10月 vs 9月 · 人民币</span>
+        <button id="export-btn" class="export-btn" type="button">导出图片</button>
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">三平台 10 月费用</div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot" style="background:#6b6b6b"></span>9月</span>
+          <span class="legend-item"><span class="dot" style="background:var(--blue)"></span>10月</span>
+        </div>
+      </div>
+      <div class="multiples" id="multiples"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">环比增量归因：9 月总费用 → 10 月总费用</div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot" style="background:var(--red)"></span>增加</span>
+          <span class="legend-item"><span class="dot" style="background:var(--green)"></span>减少</span>
+        </div>
+      </div>
+      <div id="chart-waterfall"></div>
+      <div class="note" id="waterfall-note"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">卡数变化（张）</div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot" style="background:#6b6b6b"></span>9月</span>
+          <span class="legend-item"><span class="dot" style="background:var(--yellow)"></span>10月</span>
+        </div>
+      </div>
+      <div id="chart-cards"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">分平台明细（点击表头排序）</div>
+        <div class="legend">
+          <span class="legend-item"><span style="display:inline-block;width:14px;height:6px;background:var(--blue);border-radius:3px"></span>10月</span>
+          <span class="legend-item"><span style="display:inline-block;width:2px;height:12px;background:#e8e8e8;opacity:.7"></span>9月</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr id="thead-group"></tr><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+          <tfoot id="tfoot"></tfoot>
+        </table>
+      </div>
+      <div class="note">数量单位：NOVITA、ucloud 按卡计；易信 1 台 = 8 卡。上涨为红、下降为绿。费用为人民币，NOVITA 由美元按当月汇率换算。</div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">NOVITA 机器数量（垫付）</div>
+      </div>
+      <div class="table-wrap" id="novita-table"></div>
+      <div class="note">10 月费用 = 22×$300 + 102×$260 + 16×$220 = <b>$36,640</b>。9 月费用 = 30×$300 + 100×$260 + 60×$220 = <b>$48,200</b>，4090 两个月都按 $220/卡。人民币：10 月 × 6.7351，9 月 × 6.7108。</div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">ucloud 机器数量（预付）</div>
+      </div>
+      <div class="table-wrap" id="ucloud-table"></div>
+      <div class="note" id="ucloud-note"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">易信 · 4 台机器 / 32 卡（垫付）</div>
+      </div>
+      <div class="table-wrap" id="yixin-table"></div>
+      <div class="note">10 月标价 4 台 ×（GPU ¥14,000 + IP ¥50 + 带宽 ¥600）= ¥58,600，已扣 9 月无法使用卡费 <b>¥3,325</b>，实付 <b>¥55,275</b>。9 月不是整月，账单 <b>¥45,186.67</b>：1 台按 26/30、3 台按 22/30。</div>
+    </div>
+  </div>
+
+  <script>
+    // 重要：看板不会读取飞书。飞书「机器」改数后须改本文件并保存，浏览器 Ctrl+F5。
+    // 来源：飞书 AI-平台消耗 / 工作表「机器」，2026-10-16。
+    const FX_OCT = 6.7351;
+    const FX_SEP = 6.7108;
+    const UCLOUD_SEP_BILLED = 86918.92;
+
+    const novitaModels = [
+      { name: "5090-高频", octPrice: 300, sepPrice: 300, octQty: 22, sepQty: 30 },
+      { name: "5090-普通", octPrice: 260, sepPrice: 260, octQty: 102, sepQty: 100 },
+      { name: "4090", octPrice: 220, sepPrice: 220, octQty: 16, sepQty: 60 },
+    ];
+
+    const ucloudRows = [
+      { account: "主号", email: "agispace.io@gmail.com", spec: "5090-华北二A", price: 2157.84, octQty: 3, sepQty: 3, bal: 72.68 },
+      { account: "", email: "", spec: "5090-上海二A", price: 2090.34, octQty: 25, sepQty: 25, bal: null },
+      { account: "子号A", email: "justloveben@gmail.com", spec: "5090-上海二A", price: 2160.01, octQty: 5, sepQty: 5, bal: 565.47 },
+      { account: "子号B", email: "justloveben2024@gmail.com", spec: "5090-上海二A", price: 2206.47, octQty: 5, sepQty: 5, bal: 323.15 },
+      { account: "子号C", email: "liveme163_002@163.com", spec: "5090-上海二A", price: 2140.48, octQty: 9, sepQty: 10, bal: 1127.32 },
+    ];
+
+    const YIXIN_PRICE = 14000 + 50 + 600;
+    const YIXIN_MACHINES = 4;
+    const YIXIN_CARDS = 32;
+    const YIXIN_DEDUCT = 3325;
+    const YIXIN_OCT = YIXIN_PRICE * YIXIN_MACHINES - YIXIN_DEDUCT;
+    const YIXIN_SEP = 14000 / 30 * 26 + 14000 / 30 * 22 * 3 + 50 / 30 * 26 * 4 + 40 * 15 / 30 * 26 * 4;
+
+    const money = (n, cur = "CNY") => {
+      const sym = cur === "USD" ? "$" : "¥";
+      return (n < 0 ? "-" : "") + sym + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+    const signedMoney = (n, cur = "CNY") => (n > 0 ? "+" : "") + money(n, cur);
+    const pctStr = (x) => {
+      if (!isFinite(x)) return "—";
+      const s = Math.abs(x * 100);
+      return (x < 0 ? "-" : "") + s.toFixed(s >= 100 ? 0 : 1) + "%";
+    };
+    function delta(curr, prev) {
+      if (prev === 0) return curr > 0 ? { text: "新增", dir: "up", v: Infinity } : { text: "—", dir: "flat", v: 0 };
+      const r = (curr - prev) / prev;
+      if (Math.abs(r) < 0.0005) return { text: "持平", dir: "flat", v: 0 };
+      const s = Math.abs(r * 100);
+      const txt = s >= 1000 ? Math.round(s).toLocaleString("en-US") + "%" : s.toFixed(s >= 100 ? 0 : 1) + "%";
+      return r > 0 ? { text: "涨 " + txt, dir: "up", v: r } : { text: "跌 " + txt, dir: "down", v: r };
+    }
+    const deltaCell = (d) => `<span class="${d.dir}">${d.text}</span>`;
+    const qtyCell = (n) => `<span class="${n > 0 ? "up" : n < 0 ? "down" : "flat"}">${n > 0 ? "+" : ""}${n}</span>`;
+    const wan = (n) => (n === 0 ? "0" : (n / 10000).toFixed(n % 10000 === 0 ? 0 : 0) + "万");
+
+    novitaModels.forEach((m) => {
+      m.octCost = m.octQty * m.octPrice;
+      m.sepCost = m.sepQty * m.sepPrice;
+    });
+    const novita = {
+      octQty: novitaModels.reduce((a, m) => a + m.octQty, 0),
+      sepQty: novitaModels.reduce((a, m) => a + m.sepQty, 0),
+      octUsd: novitaModels.reduce((a, m) => a + m.octCost, 0),
+      sepUsd: novitaModels.reduce((a, m) => a + m.sepCost, 0),
+    };
+    novita.octCny = novita.octUsd * FX_OCT;
+    novita.sepCny = novita.sepUsd * FX_SEP;
+
+    const ucloud = {
+      octQty: ucloudRows.reduce((a, r) => a + r.octQty, 0),
+      sepQty: ucloudRows.reduce((a, r) => a + r.sepQty, 0),
+      octCost: ucloudRows.reduce((a, r) => a + r.price * r.octQty, 0),
+      sepCost: UCLOUD_SEP_BILLED,
+      bal: ucloudRows.reduce((a, r) => a + (r.bal || 0), 0),
+      listSep: ucloudRows.reduce((a, r) => a + r.price * r.sepQty, 0),
+    };
+
+    const yixin = {
+      octQty: YIXIN_CARDS,
+      sepQty: YIXIN_CARDS,
+      octCost: YIXIN_OCT,
+      sepCost: YIXIN_SEP,
+    };
+
+    const platforms = [
+      { name: "NOVITA", color: "#4da3ff", tag: "垫付 · 美元", octCards: novita.octQty, sepCards: novita.sepQty, octCost: novita.octCny, sepCost: novita.sepCny, usd: true },
+      { name: "ucloud", color: "#3ddc84", tag: "预付", octCards: ucloud.octQty, sepCards: ucloud.sepQty, octCost: ucloud.octCost, sepCost: ucloud.sepCost },
+      { name: "易信", color: "#f0a040", tag: "垫付 · 4 台", octCards: yixin.octQty, sepCards: yixin.sepQty, octCost: yixin.octCost, sepCost: yixin.sepCost },
+    ];
+    const sum = (k) => platforms.reduce((a, p) => a + p[k], 0);
+    const T = { octCost: sum("octCost"), sepCost: sum("sepCost"), octCards: sum("octCards"), sepCards: sum("sepCards") };
+    T.octUnit = T.octCost / T.octCards;
+    T.sepUnit = T.sepCost / T.sepCards;
+    platforms.forEach((p) => {
+      p.share = p.octCost / T.octCost;
+      p.octUnit = p.octCost / p.octCards;
+      p.sepUnit = p.sepCost / p.sepCards;
+    });
+
+    document.getElementById("stats").innerHTML = [
+      { value: money(T.octCost), label: "10 月总费用", tone: "warning", d: delta(T.octCost, T.sepCost), vs: "vs 9月 " + money(T.sepCost) },
+      { value: T.octCards + " 卡", label: "10 月卡数", tone: "", d: delta(T.octCards, T.sepCards), vs: "vs 9月 " + T.sepCards + " 卡 · " + (T.octCards - T.sepCards) + " 张" },
+      { value: money(T.octUnit), label: "10 月单卡均价", tone: "", d: delta(T.octUnit, T.sepUnit), vs: "vs 9月 " + money(T.sepUnit) },
+    ].map((s) =>
+      `<div class="stat ${s.tone}"><div class="top"><div class="value">${s.value}</div><div class="dir ${s.d.dir}">${s.d.text}</div></div><div class="label">${s.label}</div><div class="vs">${s.vs}</div></div>`
+    ).join("");
+
+    document.getElementById("multiples").innerHTML = platforms.map((p) => {
+      const d = delta(p.octCost, p.sepCost);
+      const cardD = p.octCards - p.sepCards;
+      const max = Math.max(p.octCost, p.sepCost);
+      const usd = p.usd
+        ? `<span class="kpi-cny">${money(novita.octUsd, "USD")} · 汇率 ${FX_OCT}</span>`
+        : `<span class="kpi-cny">${p.name === "ucloud" ? "10月按月租×卡数" : "9月未满月 · 卡数未变"}</span>`;
+      const bar = (label, v, color) =>
+        `<div class="cmp-row"><span>${label}</span><div class="track"><i style="width:${(v / max) * 100}%;background:${color}"></i></div><span>${money(v)}</span></div>`;
+      return `<div class="pcard">
+        <div class="head"><span class="name"><span class="dot" style="background:${p.color}"></span>${p.name}<span class="unit">${p.tag}</span></span><span class="share">费用占比 ${pctStr(p.share)}</span></div>
+        <div class="kpi"><div class="kpi-main"><span class="v">${money(p.octCost)} <span class="d-label">人民币</span></span>${usd}</div><span class="d ${d.dir}"><span class="d-label">较 9月 </span>${d.text}</span></div>
+        <div class="cmp">${bar("9月", p.sepCost, "#6b6b6b")}${bar("10月", p.octCost, p.color)}</div>
+        <div class="foot"><span>${p.octCards} 卡 · 较 9月 ${cardD > 0 ? "+" : ""}${cardD}</span><span>单卡 ${money(p.octUnit)}</span></div>
+      </div>`;
+    }).join("");
+
+    (function drawWaterfall() {
+      const el = document.getElementById("chart-waterfall");
+      const rows = [{ name: "9 月总费用", kind: "total", v: T.sepCost }];
+      platforms.forEach((p) => rows.push({ name: p.name, kind: "delta", v: p.octCost - p.sepCost }));
+      rows.push({ name: "10 月总费用", kind: "total", v: T.octCost });
+
+      const W = 880, left = 120, right = W - 110, rowH = 26, top = 22;
+      const H = top + rows.length * rowH + 8;
+      const xMax = 500000;
+      const x = (v) => left + (v / xMax) * (right - left);
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      for (let t = 0; t <= xMax; t += 100000) {
+        svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${H - 6}" stroke="#2a2a2a"/>`;
+        svg += `<text x="${x(t)}" y="${top - 8}" text-anchor="middle" font-size="10" fill="#8a8a8a">${wan(t)}</text>`;
+      }
+      let cum = 0;
+      rows.forEach((r, i) => {
+        const cy = top + i * rowH + rowH / 2;
+        let x0, x1, color, label;
+        if (r.kind === "total") {
+          x0 = x(0); x1 = x(r.v); cum = r.v;
+          color = i === 0 ? "#6b6b6b" : "#f0a040";
+          label = money(r.v);
+        } else {
+          const next = cum + r.v;
+          x0 = x(Math.min(cum, next)); x1 = x(Math.max(cum, next));
+          color = r.v > 0 ? "#ff5c5c" : r.v < 0 ? "#3ddc84" : "#8a8a8a";
+          label = Math.abs(r.v) < 0.005 ? "持平" : signedMoney(r.v);
+          cum = next;
+        }
+        const width = Math.max(r.kind === "delta" && Math.abs(r.v) < 0.005 ? 2 : 1.5, x1 - x0);
+        if (i > 0) {
+          const anchor = r.kind === "total" ? cum : cum - r.v;
+          svg += `<line x1="${x(anchor)}" x2="${x(anchor)}" y1="${cy - rowH + 8}" y2="${cy - 8}" stroke="#555" stroke-dasharray="2 2"/>`;
+        }
+        svg += `<text x="${left - 10}" y="${cy}" text-anchor="end" dominant-baseline="middle" font-size="11" fill="${r.kind === "total" ? "#f2f2f2" : "#c8c8c8"}" font-weight="${r.kind === "total" ? 600 : 400}">${r.name}</text>`;
+        svg += `<rect x="${x0}" y="${cy - 7}" width="${width}" height="14" rx="2" fill="${color}" opacity="${r.kind === "total" ? 0.9 : 0.85}"/>`;
+        svg += `<text x="${x1 + 6}" y="${cy}" dominant-baseline="middle" font-size="10.5" font-weight="600" fill="${r.kind === "total" ? "#f2f2f2" : color}">${label}</text>`;
+      });
+      svg += `</svg>`;
+      el.innerHTML = svg;
+      const cardPhrase = (n) => (n === 0 ? "持平" : (n > 0 ? "多 " : "少 ") + Math.abs(n) + " 张");
+      const novitaCardNote = novitaModels.map((m) => `${m.name} ${m.sepQty}→${m.octQty}`).join("，");
+      document.getElementById("waterfall-note").innerHTML =
+        `费用少 <b>${money(T.sepCost - T.octCost)}</b>：NOVITA ${signedMoney(novita.octCny - novita.sepCny)}，ucloud ${signedMoney(ucloud.octCost - ucloud.sepCost)}，易信 ${signedMoney(yixin.octCost - yixin.sepCost)}。卡数${cardPhrase(T.octCards - T.sepCards)}：NOVITA ${cardPhrase(novita.octQty - novita.sepQty)}（${novitaCardNote}），ucloud ${cardPhrase(ucloud.octQty - ucloud.sepQty)}，易信${cardPhrase(yixin.octQty - yixin.sepQty)}。`;
+    })();
+
+    (function drawCards() {
+      const el = document.getElementById("chart-cards");
+      const rows = [
+        ...platforms.map((p) => ({ name: p.name, sep: p.sepCards, oct: p.octCards, color: p.color })),
+        { name: "合计", sep: T.sepCards, oct: T.octCards, color: "#f5c518" },
+      ];
+      const W = 880, left = 72, right = W - 130, top = 16, rowH = 34;
+      const H = top + rows.length * rowH + 4;
+      const max = 300;
+      const x = (v) => left + (v / max) * (right - left);
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      for (let t = 0; t <= max; t += 50) {
+        svg += `<line x1="${x(t)}" x2="${x(t)}" y1="0" y2="${H}" stroke="#2a2a2a"/>`;
+        if (t > 0) svg += `<text x="${x(t)}" y="8" text-anchor="middle" font-size="9" fill="#8a8a8a">${t}</text>`;
+      }
+      rows.forEach((r, i) => {
+        const y = top + i * rowH + 14;
+        const bold = r.name === "合计" ? 650 : 400;
+        svg += `<text x="${left - 8}" y="${y + 4}" text-anchor="end" font-size="11" font-weight="${bold}" fill="#f2f2f2">${r.name}</text>`;
+        svg += `<rect x="${x(0)}" y="${y - 6}" width="${Math.max(1, x(r.sep) - x(0))}" height="6" rx="2" fill="#6b6b6b"/>`;
+        svg += `<rect x="${x(0)}" y="${y + 2}" width="${Math.max(1, x(r.oct) - x(0))}" height="6" rx="2" fill="${r.color}"/>`;
+        const d = r.oct - r.sep;
+        const dText = d === 0 ? "持平" : (d > 0 ? "+" : "") + d;
+        svg += `<text x="${right + 8}" y="${y + 4}" font-size="11" font-weight="600" fill="${d < 0 ? "#3ddc84" : d > 0 ? "#ff5c5c" : "#9a9a9a"}">${r.sep} → ${r.oct}  ${dText}</text>`;
+      });
+      svg += `</svg>`;
+      el.innerHTML = svg;
+    })();
+
+    const maxCost = Math.max(...platforms.map((p) => Math.max(p.octCost, p.sepCost)));
+    const maxUnit = Math.max(...platforms.map((p) => Math.max(p.octUnit, p.sepUnit)));
+    const barCell = (curr, prev, max, color) =>
+      `<div class="cell-bar"><span>${money(curr)}</span><div class="bar"><i style="width:${(curr / max) * 100}%;background:${color}"></i><b style="left:${(prev / max) * 100}%"></b></div><span class="sm">9月 ${money(prev)}</span></div>`;
+
+    const GROUPS = {
+      cost: { label: "费用 · 10月 vs 9月" },
+      card: { label: "卡数" },
+      unit: { label: "单卡均价" },
+    };
+    const columns = [
+      { label: "平台", sort: (p) => p.name, render: (p) => `<span class="dot" style="background:${p.color};margin-right:6px"></span>${p.name}`, foot: () => "合计" },
+      { label: "费用占比", sort: (p) => p.share, render: (p) => pctStr(p.share), foot: () => "100%" },
+      { label: "10月 vs 9月", group: "cost", sort: (p) => p.octCost, render: (p) => barCell(p.octCost, p.sepCost, maxCost, "#4da3ff"), foot: () => money(T.octCost) },
+      { label: "费用环比", group: "cost", sort: (p) => delta(p.octCost, p.sepCost).v, render: (p) => deltaCell(delta(p.octCost, p.sepCost)), foot: () => deltaCell(delta(T.octCost, T.sepCost)) },
+      { label: "10月卡数", group: "card", sort: (p) => p.octCards, render: (p) => p.octCards, foot: () => T.octCards },
+      { label: "较 9月", group: "card", sort: (p) => p.octCards - p.sepCards, render: (p) => qtyCell(p.octCards - p.sepCards), foot: () => qtyCell(T.octCards - T.sepCards) },
+      { label: "10月单卡 vs 9月", group: "unit", sort: (p) => p.octUnit, render: (p) => barCell(p.octUnit, p.sepUnit, maxUnit, "#b07aff"), foot: () => money(T.octUnit) },
+      { label: "单卡环比", group: "unit", sort: (p) => delta(p.octUnit, p.sepUnit).v, render: (p) => deltaCell(delta(p.octUnit, p.sepUnit)), foot: () => deltaCell(delta(T.octUnit, T.sepUnit)) },
+    ];
+    const gcls = (c) => (c.group ? "g-" + c.group : "");
+    let sortIdx = 2, sortDesc = true;
+    function renderTable() {
+      const groupRow = [];
+      columns.forEach((c) => {
+        const last = groupRow[groupRow.length - 1];
+        if (last && c.group && last.group === c.group) last.span++;
+        else groupRow.push({ group: c.group, span: 1 });
+      });
+      document.getElementById("thead-group").innerHTML = groupRow.map((g) =>
+        g.group ? `<th colspan="${g.span}" class="grp ${"g-" + g.group}">${GROUPS[g.group].label}</th>` : `<th colspan="${g.span}" class="grp"></th>`
+      ).join("");
+      document.getElementById("thead").innerHTML = columns.map((c, i) =>
+        `<th data-i="${i}" class="${gcls(c)} ${i === sortIdx ? "sorted" : ""}">${c.label}${i === sortIdx ? (sortDesc ? " ↓" : " ↑") : ""}</th>`
+      ).join("");
+      const f = columns[sortIdx].sort;
+      const rows = [...platforms].sort((a, b) => {
+        const va = f(a), vb = f(b);
+        const c = typeof va === "string" ? va.localeCompare(vb, "zh") : va - vb;
+        return sortDesc ? -c : c;
+      });
+      document.getElementById("tbody").innerHTML = rows.map((p) => `<tr>${columns.map((c) => `<td class="${gcls(c)}">${c.render(p)}</td>`).join("")}</tr>`).join("");
+      document.getElementById("tfoot").innerHTML = `<tr>${columns.map((c) => `<td class="${gcls(c)}">${c.foot()}</td>`).join("")}</tr>`;
+      document.querySelectorAll("#thead th").forEach((th) => th.addEventListener("click", () => {
+        const i = +th.dataset.i;
+        if (i === sortIdx) sortDesc = !sortDesc; else { sortIdx = i; sortDesc = i !== 0; }
+        renderTable();
+      }));
+    }
+    renderTable();
+
+    (function renderNovita() {
+      const priceLabel = (m) => m.octPrice === m.sepPrice
+        ? money(m.octPrice, "USD") + "/卡"
+        : `10月 ${money(m.octPrice, "USD")} / 9月 ${money(m.sepPrice, "USD")}`;
+      const blank = "<td></td><td></td><td></td><td></td>";
+      let html = `<table><thead><tr>
+        <th class="nosort">机器 · 单价</th><th class="nosort">10月</th><th class="nosort">9月</th><th class="nosort">增减(卡)</th><th class="nosort">数量环比</th><th class="nosort">10月费用</th><th class="nosort">9月费用</th><th class="nosort">费用环比</th>
+      </tr></thead><tbody>`;
+      novitaModels.forEach((m) => {
+        html += `<tr>
+          <td>${m.name}（${priceLabel(m)}）</td>
+          <td>${m.octQty}</td><td>${m.sepQty}</td>
+          <td>${qtyCell(m.octQty - m.sepQty)}</td><td>${deltaCell(delta(m.octQty, m.sepQty))}</td>
+          <td>${money(m.octCost, "USD")}</td><td>${money(m.sepCost, "USD")}</td><td>${deltaCell(delta(m.octCost, m.sepCost))}</td>
+        </tr>`;
+      });
+      html += `<tr class="row-sum"><td>总数量</td><td>${novita.octQty}</td><td>${novita.sepQty}</td><td>${qtyCell(novita.octQty - novita.sepQty)}</td><td>${deltaCell(delta(novita.octQty, novita.sepQty))}</td><td></td><td></td><td></td></tr>`;
+      html += `<tr class="row-cost"><td>总费用（美元）</td>${blank}<td>${money(novita.octUsd, "USD")}</td><td>${money(novita.sepUsd, "USD")}</td><td>${deltaCell(delta(novita.octUsd, novita.sepUsd))}</td></tr>`;
+      html += `<tr><td>单卡均价（美元）</td>${blank}<td>${money(novita.octUsd / novita.octQty, "USD")}</td><td>${money(novita.sepUsd / novita.sepQty, "USD")}</td><td>${deltaCell(delta(novita.octUsd / novita.octQty, novita.sepUsd / novita.sepQty))}</td></tr>`;
+      html += `<tr class="row-cost"><td>总费用（人民币）</td>${blank}<td>${money(novita.octCny)}</td><td>${money(novita.sepCny)}</td><td>${deltaCell(delta(novita.octCny, novita.sepCny))}</td></tr>`;
+      html += `<tr><td>单卡均价（人民币）</td>${blank}<td>${money(novita.octCny / novita.octQty)}</td><td>${money(novita.sepCny / novita.sepQty)}</td><td>${deltaCell(delta(novita.octCny / novita.octQty, novita.sepCny / novita.sepQty))}</td></tr>`;
+      html += `</tbody></table>`;
+      document.getElementById("novita-table").innerHTML = html;
+    })();
+
+    (function renderUcloud() {
+      let html = `<table><thead><tr>
+        <th class="nosort">账户</th><th class="nosort">规格 · 月租</th><th class="nosort">10月</th><th class="nosort">9月</th><th class="nosort">增减(卡)</th><th class="nosort">环比</th><th class="nosort">账户余额</th>
+      </tr></thead><tbody>`;
+      ucloudRows.forEach((r) => {
+        const rate = r.sepQty === 0 && r.octQty === 0 ? { text: "—", dir: "flat" } : delta(r.octQty, r.sepQty);
+        const who = r.account
+          ? `<div class="acct"><span class="name-main">${r.account}</span><span class="subline">${r.email}</span></div>`
+          : "";
+        const spec = r.price ? `${r.spec}（${money(r.price)}/月）` : r.spec;
+        html += `<tr>
+          <td>${who}</td><td>${spec}</td>
+          <td>${r.octQty}</td><td>${r.sepQty}</td>
+          <td>${qtyCell(r.octQty - r.sepQty)}</td><td>${deltaCell(rate)}</td>
+          <td>${r.bal == null ? "" : money(r.bal)}</td>
+        </tr>`;
+      });
+      html += `<tr class="row-sum"><td>总数量</td><td></td><td>${ucloud.octQty}</td><td>${ucloud.sepQty}</td><td>${qtyCell(ucloud.octQty - ucloud.sepQty)}</td><td>${deltaCell(delta(ucloud.octQty, ucloud.sepQty))}</td><td>${money(ucloud.bal)}</td></tr>`;
+      html += `<tr class="row-cost"><td>总费用</td><td></td><td>${money(ucloud.octCost)}</td><td>${money(ucloud.sepCost)}</td><td>${signedMoney(ucloud.octCost - ucloud.sepCost)}</td><td>${deltaCell(delta(ucloud.octCost, ucloud.sepCost))}</td><td></td></tr>`;
+      html += `<tr><td>单卡均价</td><td></td><td>${money(ucloud.octCost / ucloud.octQty)}</td><td>${money(ucloud.sepCost / ucloud.sepQty)}</td><td>${signedMoney(ucloud.octCost / ucloud.octQty - ucloud.sepCost / ucloud.sepQty)}</td><td>${deltaCell(delta(ucloud.octCost / ucloud.octQty, ucloud.sepCost / ucloud.sepQty))}</td><td></td></tr>`;
+      html += `</tbody></table>`;
+      document.getElementById("ucloud-table").innerHTML = html;
+      document.getElementById("ucloud-note").innerHTML =
+        `10 月总费用按各行月租×卡数，为 <b>${money(ucloud.octCost)}</b>。9 月仍用账单 <b>${money(UCLOUD_SEP_BILLED)}</b>，不是月租×卡数（9 月按月租约 ${money(ucloud.listSep)}）。余额合计 ${money(ucloud.bal)}，是账户剩余预付，不计入本月费用。`;
+    })();
+
+    (function renderYixin() {
+      const octUnit = yixin.octCost / yixin.octQty;
+      const sepUnit = yixin.sepCost / yixin.sepQty;
+      let html = `<table><thead><tr>
+        <th class="nosort">产品</th><th class="nosort">单价</th><th class="nosort">10月</th><th class="nosort">9月</th><th class="nosort">增减</th><th class="nosort">环比</th>
+      </tr></thead><tbody>`;
+      html += `<tr><td>5090（GPU + IP + 带宽）</td><td>${money(YIXIN_PRICE)}/台</td><td>4 台 / 32 卡</td><td>4 台 / 32 卡</td><td class="flat">0</td><td class="flat">持平</td></tr>`;
+      html += `<tr><td>9月无法使用卡费扣减</td><td></td><td>${signedMoney(-YIXIN_DEDUCT)}</td><td></td><td></td><td></td></tr>`;
+      html += `<tr class="row-cost"><td>总费用（32 卡）</td><td></td><td>${money(yixin.octCost)}</td><td>${money(yixin.sepCost)}</td><td>${signedMoney(yixin.octCost - yixin.sepCost)}</td><td>${deltaCell(delta(yixin.octCost, yixin.sepCost))}</td></tr>`;
+      html += `<tr><td>单卡均价</td><td></td><td>${money(octUnit)}</td><td>${money(sepUnit)}</td><td>${signedMoney(octUnit - sepUnit)}</td><td>${deltaCell(delta(octUnit, sepUnit))}</td></tr>`;
+      html += `</tbody></table>`;
+      document.getElementById("yixin-table").innerHTML = html;
+    })();
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("加载失败：" + src));
+        document.head.appendChild(s);
+      });
+    }
+    document.getElementById("export-btn").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = "导出中…";
+      try {
+        if (!window.html2canvas) await loadScript("https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js");
+        const canvas = await html2canvas(document.querySelector(".wrap"), {
+          backgroundColor: "#141414",
+          scale: 2,
+          ignoreElements: (el) => el.id === "export-btn",
+        });
+        const a = document.createElement("a");
+        a.href = canvas.toDataURL("image/png");
+        a.download = "机器看板_10月vs9月.png";
+        a.click();
+      } catch (err) {
+        alert("导出失败，请检查网络后重试。\n" + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "导出图片";
+      }
+    });
+  </script>
+</body>
+</html>

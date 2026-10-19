@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UCLOUD</title>
+  <style>
+    :root {
+      --bg: #141414;
+      --card: #1c1c1c;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --axis: #8a8a8a;
+      --grid: #2a2a2a;
+      --stroke: #2f2f2f;
+      --blue: #4da3ff;
+      --green: #3ddc84;
+      --yellow: #f5c518;
+      --red: #ff5c5c;
+      --purple: #b07aff;
+      --orange: #f0a040;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    h1 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+    .sub { font-size: 12px; color: var(--muted); }
+    .title-right { display: flex; align-items: center; gap: 10px; }
+    .export-btn {
+      font: inherit;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .export-btn:hover { border-color: #555; }
+    .export-btn:disabled { color: var(--muted); cursor: wait; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .stat .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; white-space: nowrap; }
+    .stat .value { font-size: 20px; font-weight: 650; line-height: 26px; }
+    .stat .label, .stat .dir { font-size: 12px; line-height: 16px; white-space: nowrap; }
+    .stat .label { color: var(--muted); }
+    .stat .vs { font-size: 10px; line-height: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat .dir { font-weight: 650; }
+    .stat.warning .value { color: var(--orange); }
+    .stat.success .value { color: var(--green); }
+    .stat.info .value { color: var(--blue); }
+    .stat.danger .value { color: var(--red); }
+    /* 费用口径：上涨为红、下降为绿 */
+    .up { color: var(--red); }
+    .down { color: var(--green); }
+    .flat { color: var(--muted); }
+    .section { display: flex; flex-direction: column; gap: 6px; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .section-title { font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .legend { display: flex; justify-content: flex-end; gap: 14px; flex-wrap: wrap; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .dot { width: 10px; height: 10px; border-radius: 5px; display: inline-block; }
+    svg { width: 100%; height: auto; display: block; }
+    .note { font-size: 11px; color: var(--muted); line-height: 17px; }
+    .note b { color: var(--yellow); font-weight: 600; }
+
+    .multiples { display: grid; grid-template-columns: 1fr; gap: 6px; }
+    .pcard {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 8px 10px 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .pcard .head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .pcard .name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+    .pcard .unit { flex-shrink: 0; font-size: 10px; font-weight: 500; color: var(--yellow); padding: 0 4px; border: 1px solid #3a3a3a; border-radius: 4px; }
+    .pcard .share { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .pcard .kpi { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+    .pcard .kpi-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .pcard .kpi .v { font-size: 16px; font-weight: 650; line-height: 1.2; }
+    .pcard .kpi-cny { font-size: 10.5px; font-weight: 500; color: var(--muted); line-height: 1.2; white-space: nowrap; }
+    .pcard .kpi .d { font-size: 11px; font-weight: 650; white-space: nowrap; }
+    .pcard .kpi .d-label { color: var(--muted); font-weight: 400; }
+    .pcard .foot { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); padding-top: 2px; border-top: 1px solid var(--grid); }
+    .pcard svg { overflow: visible; }
+    .pcard-chart { margin-bottom: 28px; overflow: visible; }
+
+    .pill { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+    .pill.bad { background: rgba(255, 92, 92, 0.16); color: var(--red); }
+    .pill.warn { background: rgba(240, 160, 64, 0.16); color: var(--orange); }
+    .pill.ok { background: rgba(61, 220, 132, 0.14); color: var(--green); }
+    .pill.flat { background: #262626; color: var(--muted); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 6px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+    th { color: var(--muted); font-weight: 500; font-size: 11px; cursor: pointer; user-select: none; }
+    th:hover { color: var(--text); }
+    th.sorted { color: var(--text); }
+    th.grp { cursor: default; text-align: center; font-size: 11px; font-weight: 650; padding: 5px 8px; border-bottom: none; }
+    th.grp.g-mtd { color: var(--blue); box-shadow: inset 0 2px 0 var(--blue); }
+    th.grp.g-day { color: var(--yellow); box-shadow: inset 0 2px 0 var(--yellow); }
+    th.grp.g-est { color: var(--purple); box-shadow: inset 0 2px 0 var(--purple); }
+    .g-mtd { background: rgba(77, 163, 255, 0.08); }
+    .g-day { background: rgba(245, 197, 24, 0.07); }
+    .g-est { background: rgba(176, 122, 255, 0.09); }
+    tbody tr:hover td.g-mtd { background: rgba(77, 163, 255, 0.14); }
+    tbody tr:hover td.g-day { background: rgba(245, 197, 24, 0.12); }
+    tbody tr:hover td.g-est { background: rgba(176, 122, 255, 0.15); }
+    th:first-child, td:first-child { text-align: left; }
+    tbody tr:hover { background: #1a1a1a; }
+    tfoot td { font-weight: 650; border-top: 1px solid var(--stroke); border-bottom: none; }
+    tr.row-sum td { font-weight: 650; border-top: 1px solid var(--stroke); background: rgba(245, 197, 24, 0.06); }
+    tr.row-cost td { font-weight: 650; background: rgba(77, 163, 255, 0.08); }
+    .table-wrap { background: var(--card); border: 1px solid var(--stroke); border-radius: 8px; padding: 4px 6px; overflow-x: auto; }
+    .cell-bar { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+    .bar { position: relative; width: 120px; height: 6px; background: #262626; border-radius: 3px; }
+    .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+    .bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #e8e8e8; opacity: 0.7; }
+    .cell-bar .sm { font-size: 10.5px; color: var(--muted); }
+
+    @media (max-width: 900px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .multiples { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title-row">
+      <h1>UCLOUD</h1>
+      <div class="title-right">
+        <span class="sub">截至 9/30 · 人民币</span>
+        <button id="export-btn" class="export-btn" type="button">导出图片</button>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">各费用项日消耗走势(近 7 日实耗 · 不含 GPU 固定包月)</div>
+        <div class="legend">
+          <span class="legend-item"><span style="display:inline-block;width:14px;height:0;border-top:2px solid var(--blue)"></span>实耗</span>
+          <span class="legend-item"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed var(--muted)"></span>预估</span>
+          <span class="legend-item"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed var(--yellow)"></span>当月日均</span>
+        </div>
+      </div>
+      <div class="multiples" id="multiples"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">GPU 固定 · 机器数量（按月）</div>
+      </div>
+      <div class="table-wrap" id="gpu-fixed-table"></div>
+      <div class="note">9 月 38 台 / <b>¥86,918.92</b>，8 月 30 台 / <b>¥55,697.14</b>。总费用取飞书表内合计，不是单价×台数。8 月按需只记录了 8/29–8/31。</div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">环比增量归因：8 月合计 → 9 月整月</div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot" style="background:var(--red)"></span>增加</span>
+          <span class="legend-item"><span class="dot" style="background:var(--green)"></span>减少</span>
+        </div>
+      </div>
+      <div id="chart-waterfall"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">费用结构变化(各费用项占比)</div>
+      <div id="chart-mix"></div>
+      <div class="legend" id="mix-legend" style="justify-content:flex-start"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">分费用项明细(点击表头排序)</div>
+        <div class="legend">
+          <span class="legend-item"><span style="display:inline-block;width:14px;height:6px;background:var(--blue);border-radius:3px"></span>本期</span>
+          <span class="legend-item"><span style="display:inline-block;width:2px;height:12px;background:#e8e8e8;opacity:.7"></span>对比期</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr id="thead-group"></tr><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+          <tfoot id="tfoot"></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MTD_DAYS = 30;
+    const AUG_DAYS = 3;
+    // 9 月固定费用取表内「总费用」= 86,918.92；8 月合计 = 55,697.14。不用单价×台数。
+    const SEP_FIXED_BILLED = 86918.92;
+    const AUG_FIXED_BILLED = 55697.14;
+
+    // 重要：看板不会读取飞书。飞书「ucloud」改数后须改本文件并保存，浏览器 Ctrl+F5。
+    // 截至 9/30。9 月为整月，不再按日外推。
+    // week：按需近 7 日（9/24–9/30），D 列；固定包月不在走势里。
+    // mtd 按需 = 9 月合计 53.9；augSame 按需 = 8 月合计 352.03（表内仅 8/29–8/31）
+    // GPU 固定按整月包月计入 9 月 / 8 月，不按天外推
+    const WEEK_LABELS = ["9/24", "9/25", "9/26", "9/27", "9/28", "9/29", "9/30"];
+    const FC_LABELS = ["10/1", "10/2", "10/3", "10/4", "10/5", "10/6", "10/7"];
+
+    // 飞书 ucloud · 机器数量（按月）。sepQty = 9 月，augQty = 8 月。单价为月租。
+    const GPU_MACHINES = [
+      { name: "企业号-agispace.io@gmail.com · 5090-华北二A", unitPrice: 1794.05, sepQty: 3, augQty: 3 },
+      { name: "企业号-agispace.io@gmail.com · 5090-上海二A", unitPrice: 1784.29, sepQty: 25, augQty: 27 },
+      { name: "个人号A-justloveben@gmail.com · 5090-上海二A", unitPrice: 1944.60, sepQty: 5, augQty: 0 },
+      { name: "个人号B-justloveben2024@gmail.com · 5090-上海二A", unitPrice: 1847.37, sepQty: 5, augQty: 0 },
+    ];
+
+    const platforms = [
+      { name: "GPU (按需)", cur: "CNY", noBal: true, week: [0, 0, 0, 0, 21.72, 0.02, 4.64], d27: 4.64, d26: 0.02, bal: 0, mtd: 53.9, augSame: 352.03, est: 53.9, augFull: 352.03 },
+      { name: "GPU 固定", cur: "CNY", noBal: true, fixedGpu: true, week: [], d27: 0, d26: 0, bal: 0, mtd: SEP_FIXED_BILLED, augSame: AUG_FIXED_BILLED, est: SEP_FIXED_BILLED, augFull: AUG_FIXED_BILLED },
+    ];
+
+    function forecastNextWeek(actual) {
+      const n = actual.length;
+      if (!n) return Array(7).fill(0);
+      let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+      for (let i = 0; i < n; i++) {
+        sumX += i;
+        sumY += actual[i];
+        sumXY += i * actual[i];
+        sumX2 += i * i;
+      }
+      const den = n * sumX2 - sumX * sumX;
+      const slope = den ? (n * sumXY - sumX * sumY) / den : 0;
+      const intercept = (sumY - slope * sumX) / n;
+      const avg = sumY / n;
+      return Array.from({ length: 7 }, (_, i) => {
+        const trend = intercept + slope * (n + i);
+        const blend = avg * 0.35 + trend * 0.65;
+        return Math.max(0, blend);
+      });
+    }
+
+    const COLORS = ["#4da3ff", "#3ddc84", "#f5c518", "#ff8a5c", "#b07aff"];
+    platforms.forEach((p, i) => {
+      p.color = COLORS[i];
+      p.avg = p.fixedGpu ? 0 : p.mtd / MTD_DAYS;
+      p.augAvg = p.fixedGpu ? 0 : p.augSame / AUG_DAYS;
+    });
+
+    const sum = (k) => platforms.reduce((a, p) => a + p[k], 0);
+    const T = { d27: sum("d27"), d26: sum("d26"), mtd: sum("mtd"), augSame: sum("augSame"), augFull: sum("augFull"), est: sum("est") };
+    T.avg = T.mtd / MTD_DAYS;
+    T.augAvg = T.augSame / MTD_DAYS;
+    platforms.forEach((p) => { p.share = p.mtd / T.mtd; p.augShare = p.augSame / T.augSame; });
+
+    const sym = (cur) => (cur === "USD" ? "$" : "¥");
+    const money = (n, cur = "CNY") => (n < 0 ? "-" : "") + sym(cur) + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const money0 = (n, cur = "CNY") => {
+      const abs = Math.abs(n);
+      const digits = abs !== 0 && abs < 1000 ? 2 : 0;
+      return (n < 0 ? "-" : "") + sym(cur) + abs.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    };
+    const unitLabel = (cur) => (cur === "USD" ? "美元" : "人民币");
+    const toCny = (usd) => usd;
+    const cnyLine = (usdAmount) => `≈ ${money0(toCny(usdAmount), "CNY")}`;
+    const sparkPoint = (v, cur) => {
+      const s = sym(cur);
+      if (Math.abs(v) > 0 && Math.abs(v) < 10) {
+        return s + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      const n = Math.round(v);
+      if (Math.abs(n) >= 1000) return s + Math.round(n / 1000) + "k";
+      return s + n.toLocaleString("en-US");
+    };
+    const wan = (n) => (n === 0 ? "0" : (n / 10000).toFixed(n % 10000 === 0 ? 0 : 1) + "万");
+    const pctStr = (x) => {
+      const p = x * 100;
+      if (x !== 0 && Math.abs(p) < 0.1) return p.toFixed(3).replace(/0+$/, "").replace(/\.$/, "") + "%";
+      if (x !== 0 && Math.abs(p) < 10) return p.toFixed(1) + "%";
+      return p.toFixed(0) + "%";
+    };
+
+    function delta(curr, prev) {
+      if (prev === 0) return curr > 0 ? { text: "新增", dir: "up", v: Infinity } : { text: "—", dir: "flat", v: 0 };
+      const r = (curr - prev) / prev;
+      if (Math.abs(r) < 0.0005) return { text: "持平", dir: "flat", v: 0 };
+      const s = Math.abs(r * 100);
+      const txt = s >= 1000 ? Math.round(s).toLocaleString("en-US") + "%" : s.toFixed(s >= 100 ? 0 : 1) + "%";
+      return r > 0 ? { text: "涨 " + txt, dir: "up", v: r } : { text: "跌 " + txt, dir: "down", v: r };
+    }
+
+    const onDemand = platforms.find((p) => !p.fixedGpu);
+    const fixedGpu = platforms.find((p) => p.fixedGpu);
+    document.getElementById("stats").innerHTML = [
+      { value: money(T.mtd), label: "9 月消耗", tone: "warning", d: delta(T.mtd, T.augSame), vs: "vs 8 月合计 " + money0(T.augSame) },
+      { value: money(onDemand.d27), label: "昨日按需(9/30)", tone: "", d: delta(onDemand.d27, onDemand.d26), vs: "vs 9/29 " + money0(onDemand.d26) },
+      { value: money(onDemand.mtd), label: "按需累计(9/1–9/30)", tone: "", d: delta(onDemand.mtd, onDemand.augSame), vs: "日均 " + money(onDemand.avg) + " · vs 8 月按需 " + money0(onDemand.augSame) },
+      { value: money(fixedGpu.mtd), label: "GPU 固定(9 月)", tone: "info", d: delta(fixedGpu.mtd, fixedGpu.augSame), vs: "vs 8 月固定 " + money0(fixedGpu.augSame) },
+    ].map((s) =>
+      `<div class="stat ${s.tone}"><div class="top"><div class="value">${s.value}</div><div class="dir ${s.d.dir}">${s.d.text}</div></div><div class="label">${s.label}</div><div class="vs">${s.vs}</div></div>`
+    ).join("");
+
+    const byMtdDaily = [...platforms].filter((p) => !p.fixedGpu).sort((a, b) => b.mtd - a.mtd);
+    const byMtd = [...platforms].sort((a, b) => b.mtd - a.mtd);
+
+    function sparkline(p) {
+      const actual = p.week || [];
+      const forecast = forecastNextWeek(actual);
+      const vals = [...actual, ...forecast];
+      const labels = [...WEEK_LABELS, ...FC_LABELS];
+      const cur = p.cur || "CNY";
+      const mtdAvg = p.avg != null ? p.avg : p.mtd / MTD_DAYS;
+      const n = vals.length;
+      const W = 720, H = 210, top = 26, bottom = H - 78, left = 36, right = W - 16;
+      const max = Math.max(...vals, mtdAvg, 0.01) * 1.15;
+      const xAt = (i) => left + (i * (right - left)) / (n - 1);
+      const yAt = (v) => bottom - (v / max) * (bottom - top);
+      const axis = "#8a8a8a";
+      const splitX = (xAt(6) + xAt(7)) / 2;
+      const fcSum = forecast.reduce((a, b) => a + b, 0);
+      const ul = unitLabel(cur);
+      const dateSize = 11;
+      const dateY = bottom + 22;
+      const dateAngle = -45;
+      const avgY = yAt(mtdAvg);
+
+      const actualLine = actual.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
+      const fcLine = [`${xAt(6)},${yAt(actual[6])}`, ...forecast.map((v, i) => `${xAt(7 + i)},${yAt(v)}`)].join(" ");
+
+      const unitAxis = `单位：${ul}(${sym(cur)})`;
+      const midY = (top + bottom) / 2;
+
+      let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      s += `<text x="8" y="${midY}" font-size="9" font-weight="600" fill="#f5c518" text-anchor="middle" transform="rotate(-90 8 ${midY})">${unitAxis}</text>`;
+      s += `<text x="${left}" y="11" font-size="9" fill="${axis}">实耗 · ${ul}</text>`;
+      s += `<text x="${right}" y="11" text-anchor="end" font-size="9" fill="#888">预估 · ${ul} · 合计 ${money0(fcSum, cur)}</text>`;
+      s += `<line x1="${left}" x2="${right}" y1="${bottom}" y2="${bottom}" stroke="#2a2a2a"/>`;
+      s += `<line x1="${splitX}" x2="${splitX}" y1="${top - 4}" y2="${bottom}" stroke="#444" stroke-dasharray="3 3"/>`;
+      s += `<line x1="${left}" x2="${right}" y1="${avgY}" y2="${avgY}" stroke="#f5c518" stroke-width="1.3" stroke-dasharray="6 4" opacity="0.9"/>`;
+      s += `<text x="${right}" y="${Math.max(top + 8, avgY - 4)}" text-anchor="end" font-size="7" font-weight="600" fill="#f5c518">日均 ${sparkPoint(mtdAvg, cur)}</text>`;
+      s += `<polyline points="${actualLine}" fill="none" stroke="${p.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      s += `<polyline points="${fcLine}" fill="none" stroke="${p.color}" stroke-width="1.8" stroke-dasharray="5 4" stroke-linejoin="round" opacity="0.85"/>`;
+      vals.forEach((v, i) => {
+        const fc = i >= 7;
+        const cx = xAt(i);
+        const cy = yAt(v);
+        s += `<circle cx="${cx}" cy="${cy}" r="${fc ? 2.5 : 3}" fill="${fc ? "#1c1c1c" : p.color}" stroke="${p.color}" stroke-width="1.4"/>`;
+        const valY = fc ? cy + 12 : cy - 5;
+        s += `<text x="${cx}" y="${valY}" text-anchor="middle" font-size="7.5" font-weight="600" fill="${fc ? "#9a9a9a" : p.color}">${sparkPoint(v, cur)}</text>`;
+      });
+      for (let i = 0; i < n; i++) {
+        const fc = i >= 7;
+        const lx = xAt(i);
+        s += `<text x="${lx}" y="${dateY}" text-anchor="middle" font-size="${dateSize}" font-weight="500" fill="${fc ? "#888" : axis}" transform="rotate(${dateAngle} ${lx} ${dateY})">${labels[i]}</text>`;
+      }
+      return s + `</svg>`;
+    }
+
+    document.getElementById("multiples").innerHTML = byMtdDaily.map((p) => {
+      const cur = p.cur || "CNY";
+      const last = p.week[p.week.length - 1];
+      const prev = p.week[p.week.length - 2];
+      const d = delta(last, prev);
+      const ul = unitLabel(cur);
+      const kpiCny = cur === "USD" ? `<span class="kpi-cny">${cnyLine(last)} 人民币 · ${WEEK_LABELS[WEEK_LABELS.length - 1]} 日耗</span>` : "";
+      return `<div class="pcard">
+        <div class="head"><span class="name"><span class="dot" style="background:${p.color}"></span>${p.name}<span class="unit">${ul}</span></span><span class="share">消耗占比 ${pctStr(p.share)}</span></div>
+        <div class="kpi"><div class="kpi-main"><span class="v">${money0(last, cur)} <span class="d-label">${ul}</span></span>${kpiCny}</div><span class="d ${d.dir}"><span class="d-label">较前一天 </span>${d.text}</span></div>
+        <div class="pcard-chart">${sparkline(p)}</div>
+      </div>`;
+    }).join("");
+
+    (function renderGpuMachineTable() {
+      const el = document.getElementById("gpu-fixed-table");
+      const rows = GPU_MACHINES.map((m) => {
+        const sepCost = m.sepQty * m.unitPrice;
+        const augCost = m.augQty * m.unitPrice;
+        const dQty = m.sepQty - m.augQty;
+        const mom = m.augQty ? dQty / m.augQty : null;
+        return { ...m, sepCost, augCost, dQty, mom };
+      });
+      const sepQty = rows.reduce((a, r) => a + r.sepQty, 0);
+      const augQty = rows.reduce((a, r) => a + r.augQty, 0);
+      const sepCost = SEP_FIXED_BILLED;
+      const augCost = AUG_FIXED_BILLED;
+      const dQty = sepQty - augQty;
+      const momQty = augQty ? dQty / augQty : 0;
+      const dCost = sepCost - augCost;
+      const momCost = augCost ? dCost / augCost : 0;
+      const momCell = (r) => {
+        if (r == null) return `<span class="up">新增</span>`;
+        if (Math.abs(r) < 0.0005) return `<span class="flat">0%</span>`;
+        const pct = Math.abs(r * 100).toFixed(Math.abs(r) < 0.1 && r !== 0 ? 1 : 0) + "%";
+        const dir = r > 0 ? "up" : "down";
+        return `<span class="${dir}">${r < 0 ? "-" : ""}${pct}</span>`;
+      };
+      const qtyCell = (n) => (n > 0 ? "+" : "") + n;
+      const costCell = (n) => (n >= 0 ? "+" : "") + money(n);
+
+      let html = `<table><thead><tr>
+        <th>机器 · 单价</th><th>9 月数量</th><th>8 月数量</th><th>增减(台)</th><th>环比率</th>
+      </tr></thead><tbody>`;
+      rows.forEach((r) => {
+        html += `<tr>
+          <td>${r.name} (${money(r.unitPrice)}/台)</td>
+          <td>${r.sepQty}</td><td>${r.augQty}</td>
+          <td>${qtyCell(r.dQty)}</td><td>${momCell(r.mom)}</td>
+        </tr>`;
+      });
+      html += `<tr class="row-sum">
+        <td>总数量</td><td>${sepQty}</td><td>${augQty}</td><td>${qtyCell(dQty)}</td><td>${momCell(momQty)}</td>
+      </tr>`;
+      html += `<tr class="row-cost">
+        <td>总费用</td><td>${money(sepCost)}</td><td>${money(augCost)}</td><td>${costCell(dCost)}</td><td>${momCell(momCost)}</td>
+      </tr>`;
+      html += `</tbody></table>`;
+      el.innerHTML = html;
+    })();
+
+    (function drawWaterfall() {
+      const el = document.getElementById("chart-waterfall");
+      const rows = [{ name: "8 月合计", kind: "total", v: T.augSame }];
+      [...platforms].sort((a, b) => (b.mtd - b.augSame) - (a.mtd - a.augSame)).forEach((p) => rows.push({ name: p.name, kind: "delta", v: p.mtd - p.augSame }));
+      rows.push({ name: "9 月整月", kind: "total", v: T.mtd });
+
+      const W = 880, left = 150, right = W - 96, rowH = 22, top = 20;
+      const H = top + rows.length * rowH + 8;
+      const xMax = 100000;
+      const x = (v) => left + (v / xMax) * (right - left);
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      for (let t = 0; t <= xMax; t += 20000) {
+        svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${H - 6}" stroke="#2a2a2a"/>`;
+        svg += `<text x="${x(t)}" y="${top - 8}" text-anchor="middle" font-size="10" fill="#8a8a8a">${wan(t)}</text>`;
+      }
+      let cum = 0;
+      rows.forEach((r, i) => {
+        const cy = top + i * rowH + rowH / 2;
+        let x0, x1, color, label;
+        if (r.kind === "total") {
+          x0 = x(0); x1 = x(r.v); cum = r.v;
+          color = i === 0 ? "#6b6b6b" : "#f0a040";
+          label = money0(r.v);
+        } else {
+          const next = cum + r.v;
+          x0 = x(Math.min(cum, next)); x1 = x(Math.max(cum, next));
+          color = r.v >= 0 ? "#ff5c5c" : "#3ddc84";
+          label = (r.v >= 0 ? "+" : "") + money0(r.v);
+          cum = next;
+        }
+        if (i > 0) svg += `<line x1="${x(r.kind === "total" ? cum : cum - r.v)}" x2="${x(r.kind === "total" ? cum : cum - r.v)}" y1="${cy - rowH + 7}" y2="${cy - 7}" stroke="#555" stroke-dasharray="2 2"/>`;
+        svg += `<text x="${left - 10}" y="${cy}" text-anchor="end" dominant-baseline="middle" font-size="11" fill="${r.kind === "total" ? "#f2f2f2" : "#c8c8c8"}" font-weight="${r.kind === "total" ? 600 : 400}">${r.name}</text>`;
+        svg += `<rect x="${x0}" y="${cy - 7}" width="${Math.max(1.5, x1 - x0)}" height="14" rx="2" fill="${color}" opacity="${r.kind === "total" ? 0.9 : 0.85}"/>`;
+        svg += `<text x="${x1 + 6}" y="${cy}" dominant-baseline="middle" font-size="10.5" font-weight="600" fill="${r.kind === "total" ? "#f2f2f2" : color}">${label}</text>`;
+      });
+      svg += `</svg>`;
+      el.innerHTML = svg;
+    })();
+
+    (function drawMix() {
+      const el = document.getElementById("chart-mix");
+      const W = 880, left = 150, right = W - 10, barH = 22, gap = 10, top = 4;
+      const rows = [
+        { name: "8 月合计", total: T.augSame, key: "augShare" },
+        { name: "9 月整月", total: T.mtd, key: "share" },
+      ];
+      const H = top + rows.length * (barH + gap);
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      rows.forEach((r, ri) => {
+        const y0 = top + ri * (barH + gap);
+        svg += `<text x="${left - 10}" y="${y0 + barH / 2 - 5}" text-anchor="end" dominant-baseline="middle" font-size="11" font-weight="600" fill="#f2f2f2">${r.name}</text>`;
+        svg += `<text x="${left - 10}" y="${y0 + barH / 2 + 8}" text-anchor="end" dominant-baseline="middle" font-size="10" fill="#8a8a8a">${money0(r.total)}</text>`;
+        let cx = left;
+        byMtd.forEach((p) => {
+          const w = p[r.key] * (right - left);
+          if (w <= 0) return;
+          svg += `<rect x="${cx}" y="${y0}" width="${Math.max(0, w - 1)}" height="${barH}" fill="${p.color}" opacity="0.85"><title>${p.name} ${pctStr(p[r.key])}</title></rect>`;
+          if (w > 34) svg += `<text x="${cx + w / 2}" y="${y0 + barH / 2}" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="650" fill="#141414">${pctStr(p[r.key])}</text>`;
+          cx += w;
+        });
+      });
+      svg += `</svg>`;
+      el.innerHTML = svg;
+      document.getElementById("mix-legend").innerHTML = byMtd.map((p) =>
+        `<span class="legend-item"><span class="dot" style="background:${p.color}"></span>${p.name}</span>`
+      ).join("");
+    })();
+
+    const maxMtd = Math.max(...platforms.map((p) => Math.max(p.mtd, p.augSame)));
+    const barCell = (curr, prev, max, color) =>
+      `<div class="cell-bar"><span>${money(curr)}</span><div class="bar"><i style="width:${(curr / max) * 100}%;background:${color}"></i><b style="left:${(prev / max) * 100}%"></b></div><span class="sm">对比 ${money(prev)}</span></div>`;
+
+    const GROUPS = {
+      mtd: { label: "整月 · 9 月 vs 8 月合计" },
+      day: { label: "月末按需" },
+      est: { label: "按需日均 · 9 月 30 天 vs 8 月表内 3 天" },
+    };
+    const deltaCell = (d) => `<span class="${d.dir}">${d.text}</span>`;
+
+    const columns = [
+      { label: "费用项", sort: (p) => p.name, render: (p) => `<span class="dot" style="background:${p.color};margin-right:6px"></span>${p.name}`, foot: () => "合计" },
+      { label: "占比", sort: (p) => p.share, render: (p) => pctStr(p.share), foot: () => "100%" },
+      { label: "9 月 vs 8 月", group: "mtd", sort: (p) => p.mtd, render: (p) => barCell(p.mtd, p.augSame, maxMtd, "#4da3ff"), foot: () => money(T.mtd) },
+      { label: "环比", group: "mtd", sort: (p) => delta(p.mtd, p.augSame).v, render: (p) => deltaCell(delta(p.mtd, p.augSame)), foot: () => deltaCell(delta(T.mtd, T.augSame)) },
+      { label: "9/30", group: "day", sort: (p) => p.fixedGpu ? -1 : p.d27, render: (p) => p.fixedGpu ? "—" : money(p.d27), foot: () => money(onDemand.d27) },
+      { label: "较 9/29", group: "day", sort: (p) => p.fixedGpu ? -1 : delta(p.d27, p.d26).v, render: (p) => p.fixedGpu ? "—" : deltaCell(delta(p.d27, p.d26)), foot: () => deltaCell(delta(onDemand.d27, onDemand.d26)) },
+      { label: "9 月日均", group: "est", sort: (p) => p.fixedGpu ? -1 : p.avg, render: (p) => p.fixedGpu ? "—" : money(p.avg), foot: () => money(onDemand.avg) },
+      { label: "vs 8 月日均", group: "est", sort: (p) => p.fixedGpu ? -1 : delta(p.avg, p.augAvg).v, render: (p) => p.fixedGpu ? "—" : deltaCell(delta(p.avg, p.augAvg)), foot: () => deltaCell(delta(onDemand.avg, onDemand.augAvg)) },
+    ];
+    const gcls = (c) => (c.group ? "g-" + c.group : "");
+
+    let sortIdx = 2, sortDesc = true;
+    function renderTable() {
+      const groupRow = [];
+      columns.forEach((c) => {
+        const last = groupRow[groupRow.length - 1];
+        if (last && c.group && last.group === c.group) last.span++;
+        else groupRow.push({ group: c.group, span: 1 });
+      });
+      document.getElementById("thead-group").innerHTML = groupRow.map((g) =>
+        g.group ? `<th colspan="${g.span}" class="grp ${"g-" + g.group}">${GROUPS[g.group].label}</th>` : `<th colspan="${g.span}" class="grp"></th>`
+      ).join("");
+      document.getElementById("thead").innerHTML = columns.map((c, i) =>
+        `<th data-i="${i}" class="${gcls(c)} ${i === sortIdx ? "sorted" : ""}">${c.label}${i === sortIdx ? (sortDesc ? " ↓" : " ↑") : ""}</th>`
+      ).join("");
+      const f = columns[sortIdx].sort;
+      const rows = [...platforms].sort((a, b) => {
+        const va = f(a), vb = f(b);
+        const c = typeof va === "string" ? va.localeCompare(vb, "zh") : va - vb;
+        return sortDesc ? -c : c;
+      });
+      document.getElementById("tbody").innerHTML = rows.map((p) => `<tr>${columns.map((c) => `<td class="${gcls(c)}">${c.render(p)}</td>`).join("")}</tr>`).join("");
+      document.getElementById("tfoot").innerHTML = `<tr>${columns.map((c) => `<td class="${gcls(c)}">${c.foot()}</td>`).join("")}</tr>`;
+      document.querySelectorAll("#thead th").forEach((th) => th.addEventListener("click", () => {
+        const i = +th.dataset.i;
+        if (i === sortIdx) sortDesc = !sortDesc; else { sortIdx = i; sortDesc = i !== 0; }
+        renderTable();
+      }));
+    }
+    renderTable();
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("加载失败：" + src));
+        document.head.appendChild(s);
+      });
+    }
+
+    document.getElementById("export-btn").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = "导出中…";
+      try {
+        if (!window.html2canvas) await loadScript("https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js");
+        const canvas = await html2canvas(document.querySelector(".wrap"), {
+          backgroundColor: "#141414",
+          scale: 2,
+          ignoreElements: (el) => el.id === "export-btn",
+        });
+        const a = document.createElement("a");
+        a.href = canvas.toDataURL("image/png");
+        a.download = "Ucloud费用趋势看板_9-30.png";
+        a.click();
+      } catch (err) {
+        alert("导出失败，请检查网络后重试。\n" + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "导出图片";
+      }
+    });
+  </script>
+</body>
+</html>

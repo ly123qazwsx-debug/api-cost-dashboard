@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenRouter - 费用趋势看板</title>
+  <style>
+    :root {
+      --bg: #141414;
+      --card: #1c1c1c;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --axis: #8a8a8a;
+      --grid: #2a2a2a;
+      --stroke: #2f2f2f;
+      --blue: #4da3ff;
+      --green: #3ddc84;
+      --yellow: #f5c518;
+      --red: #ff5c5c;
+      --purple: #b07aff;
+      --orange: #f0a040;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    h1 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+    .title-right { display: flex; align-items: center; gap: 10px; }
+    .export-btn {
+      font: inherit;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .export-btn:hover { border-color: #555; }
+    .export-btn:disabled { color: var(--muted); cursor: wait; }
+    .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .stat .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; white-space: nowrap; }
+    .stat .value { font-size: 20px; font-weight: 650; line-height: 26px; }
+    .stat .label, .stat .dir { font-size: 12px; line-height: 16px; white-space: nowrap; }
+    .stat .label { color: var(--muted); }
+    .stat .vs { font-size: 10px; line-height: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat .dir { font-weight: 650; }
+    .stat.warning .value { color: var(--orange); }
+    .stat.success .value { color: var(--green); }
+    .stat.info .value { color: var(--blue); }
+    .stat.danger .value { color: var(--red); }
+    /* 费用口径：上涨为红、下降为绿 */
+    .up { color: var(--red); }
+    .down { color: var(--green); }
+    .flat { color: var(--muted); }
+    .section { display: flex; flex-direction: column; gap: 6px; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .section-title { font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .legend { display: flex; justify-content: flex-end; gap: 14px; flex-wrap: wrap; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .dot { width: 10px; height: 10px; border-radius: 5px; display: inline-block; }
+    svg { width: 100%; height: auto; display: block; }
+
+    .multiples { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .multiples.multiples-wide {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .multiples.multiples-wide .pcard {
+      padding: 10px 14px 8px;
+    }
+    .multiples.multiples-wide .pcard .kpi .v { font-size: 18px; }
+    .multiples.multiples-wide .pcard-chart {
+      margin-bottom: 8px;
+      min-height: 220px;
+    }
+    .pcard {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 8px 10px 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .pcard .head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .pcard .name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+    .pcard .unit { flex-shrink: 0; font-size: 10px; font-weight: 500; color: var(--yellow); padding: 0 4px; border: 1px solid #3a3a3a; border-radius: 4px; }
+    .pcard .share { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .pcard .kpi { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+    .pcard .kpi-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .pcard .kpi .v { font-size: 16px; font-weight: 650; line-height: 1.2; }
+    .pcard .kpi-cny { font-size: 10.5px; font-weight: 500; color: var(--muted); line-height: 1.2; white-space: nowrap; }
+    .pcard .kpi .d { font-size: 11px; font-weight: 650; white-space: nowrap; }
+    .pcard .kpi .d-label { color: var(--muted); font-weight: 400; }
+    .pcard .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; font-size: 10.5px; color: var(--muted); padding-top: 2px; border-top: 1px solid var(--grid); }
+    .pcard .foot-bal { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .pcard svg { overflow: visible; }
+    .pcard-chart { margin-bottom: 6px; overflow: visible; }
+
+    .pill { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+    .pill.bad { background: rgba(255, 92, 92, 0.16); color: var(--red); }
+    .pill.warn { background: rgba(240, 160, 64, 0.16); color: var(--orange); }
+    .pill.ok { background: rgba(61, 220, 132, 0.14); color: var(--green); }
+    .pill.flat { background: #262626; color: var(--muted); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 6px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+    th { color: var(--muted); font-weight: 500; font-size: 11px; cursor: pointer; user-select: none; }
+    th:hover { color: var(--text); }
+    th.sorted { color: var(--text); }
+    th.grp { cursor: default; text-align: center; font-size: 11px; font-weight: 650; padding: 5px 8px; border-bottom: none; }
+    th.grp.g-mtd { color: var(--blue); box-shadow: inset 0 2px 0 var(--blue); }
+    th.grp.g-day { color: var(--yellow); box-shadow: inset 0 2px 0 var(--yellow); }
+    th.grp.g-est { color: var(--purple); box-shadow: inset 0 2px 0 var(--purple); }
+    .g-mtd { background: rgba(77, 163, 255, 0.08); }
+    .g-day { background: rgba(245, 197, 24, 0.07); }
+    .g-est { background: rgba(176, 122, 255, 0.09); }
+    tbody tr:hover td.g-mtd { background: rgba(77, 163, 255, 0.14); }
+    tbody tr:hover td.g-day { background: rgba(245, 197, 24, 0.12); }
+    tbody tr:hover td.g-est { background: rgba(176, 122, 255, 0.15); }
+    th:first-child, td:first-child { text-align: left; }
+    tbody tr:hover { background: #1a1a1a; }
+    tfoot td { font-weight: 650; border-top: 1px solid var(--stroke); border-bottom: none; }
+    .table-wrap { background: var(--card); border: 1px solid var(--stroke); border-radius: 8px; padding: 4px 6px; overflow-x: auto; }
+    .cell-bar { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+    .bar { position: relative; width: 120px; height: 6px; background: #262626; border-radius: 3px; }
+    .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+    .bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #e8e8e8; opacity: 0.7; }
+    .cell-bar .sm { font-size: 10.5px; color: var(--muted); }
+
+    @media (max-width: 900px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .multiples { grid-template-columns: 1fr 1fr; }
+      .multiples.multiples-wide { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title-row">
+      <h1>OpenRouter · 费用趋势看板</h1>
+      <div class="title-right">
+        <button id="export-btn" class="export-btn" type="button">导出图片</button>
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">各费用项日消耗走势(近 7 日实耗 10/12–10/18 → 预估下一周 10/19–10/25)</div>
+        <div class="legend">
+          <span class="legend-item"><span style="display:inline-block;width:14px;height:0;border-top:2px solid var(--blue)"></span>实耗</span>
+          <span class="legend-item"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed var(--muted)"></span>预估</span>
+          <span class="legend-item"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed #d4d4d4"></span>10 月日均</span>
+          <span class="legend-item">可撑天数按近 7 日日均</span>
+          <span class="legend-item">美元卡片 KPI/余额附约合人民币（×6.7108）</span>
+        </div>
+      </div>
+      <div class="multiples multiples-wide" id="multiples"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">LLM 日耗对比：OpenRouter vs Novita(近 7 日实耗 10/12–10/18 → 预估 10/19–10/25)</div>
+        <div class="legend" id="llm-trend-legend"></div>
+      </div>
+      <div class="table-wrap" style="padding:10px 12px 6px" id="chart-llm-trend"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">环比增量归因：9 月同期 → 10 月当期(各 18 天)</div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot" style="background:var(--red)"></span>增加</span>
+          <span class="legend-item"><span class="dot" style="background:var(--green)"></span>减少</span>
+        </div>
+      </div>
+      <div id="chart-waterfall"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">费用结构变化(Flux + LLM-openrouter 占比 · 不含 Novita)</div>
+      <div id="chart-mix"></div>
+      <div class="legend" id="mix-legend" style="justify-content:flex-start"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">分费用项明细(点击表头排序)</div>
+        <div class="legend">
+          <span class="legend-item"><span style="display:inline-block;width:14px;height:6px;background:var(--blue);border-radius:3px"></span>本期</span>
+          <span class="legend-item"><span style="display:inline-block;width:2px;height:12px;background:#e8e8e8;opacity:.7"></span>对比期</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr id="thead-group"></tr><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+          <tfoot id="tfoot"></tfoot>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const MTD_DAYS = 18;
+    const MONTH_DAYS = 31;
+    const FX_SEP = 6.7108;
+    const SHEET_AUG_FULL_TOTAL = 11512.84;
+
+    // 重要：看板不会读取飞书。飞书「openrouter」改数后须改本文件并保存，浏览器 Ctrl+F5。
+    // OpenRouter 消耗合计不含 LLM-novita（Novita 仅参考展示）
+    // week：近 7 日美元日耗(10/12–10/18)；bal 与飞书第 2 行「账户余额」一致（Flux / LLM 账户）
+    // mtd=10月当期合计(18天，10/19 起为空不计入)；augSame=9/1–9/18；augFull=9月整月合计；est=mtd/18*31
+    const WEEK_LABELS = ["10/12", "10/13", "10/14", "10/15", "10/16", "10/17", "10/18"];
+    const FC_LABELS = ["10/19", "10/20", "10/21", "10/22", "10/23", "10/24", "10/25"];
+
+    const platforms = [
+      { name: "Flux", cur: "USD", week: [43.93, 34.00, 38.25, 73.95, 35.70, 65.45, 92.65], d27: 92.65, d26: 65.45, bal: 22.25, mtd: 681.12, augSame: 1006.65, est: 1173.04, augFull: 1470.41 },
+      { name: "LLM · OpenRouter", cur: "USD", week: [747.22, 673.97, 620.68, 643.02, 551.13, 598.80, 716.76], d27: 716.76, d26: 598.80, bal: 2743.13, mtd: 8981.28, augSame: 5482.99, est: 15467.76, augFull: 10042.43 },
+      { name: "LLM · Novita", cur: "USD", noBal: true, excludeFromOrTotal: true, week: [5.90, 5.61, 1.42, 2.40, 2.56, 1.14, 1.91], d27: 1.91, d26: 1.14, bal: 0, mtd: 65.30, augSame: 196.16, est: 112.46, augFull: 257.11 },
+    ];
+
+    const orPlatforms = platforms.filter((p) => !p.excludeFromOrTotal);
+
+    function forecastNextWeek(actual) {
+      const n = actual.length;
+      if (!n) return Array(7).fill(0);
+      let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+      for (let i = 0; i < n; i++) {
+        sumX += i;
+        sumY += actual[i];
+        sumXY += i * actual[i];
+        sumX2 += i * i;
+      }
+      const den = n * sumX2 - sumX * sumX;
+      const slope = den ? (n * sumXY - sumX * sumY) / den : 0;
+      const intercept = (sumY - slope * sumX) / n;
+      const avg = sumY / n;
+      return Array.from({ length: 7 }, (_, i) => {
+        const trend = intercept + slope * (n + i);
+        const blend = avg * 0.35 + trend * 0.65;
+        return Math.max(0, blend);
+      });
+    }
+
+    const COLORS = ["#4da3ff", "#3ddc84", "#f5c518", "#ff8a5c", "#b07aff"];
+    platforms.forEach((p, i) => {
+      p.color = COLORS[i];
+      p.avg = p.mtd / MTD_DAYS;
+      p.augAvg = p.augSame / MTD_DAYS;
+      p.chartMonthAvg = p.mtd / MTD_DAYS;
+    });
+
+    const sumOr = (k) => orPlatforms.reduce((a, p) => a + p[k], 0);
+    const T = { d27: sumOr("d27"), d26: sumOr("d26"), mtd: sumOr("mtd"), augSame: sumOr("augSame"), augFull: sumOr("augFull"), est: sumOr("est") };
+    T.avg = T.mtd / MTD_DAYS;
+    T.augAvg = T.augSame / MTD_DAYS;
+    platforms.forEach((p) => {
+      if (p.excludeFromOrTotal) {
+        p.share = null;
+        p.augShare = null;
+      } else {
+        p.share = p.mtd / T.mtd;
+        p.augShare = p.augSame / T.augSame;
+      }
+    });
+
+    const sym = (cur) => (cur === "USD" ? "$" : "¥");
+    const money = (n, cur = "USD") => (n < 0 ? "-" : "") + sym(cur) + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const money0 = (n, cur = "USD") => {
+      const abs = Math.abs(n);
+      const digits = abs !== 0 && (abs < 1 || (cur === "USD" && abs < 100)) ? 2 : 0;
+      return (n < 0 ? "-" : "") + sym(cur) + abs.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    };
+    const unitLabel = (cur) => (cur === "USD" ? "美元" : "人民币");
+    const sparkPoint = (v, cur) => {
+      const s = sym(cur);
+      const n = Math.round(v);
+      if (Math.abs(n) >= 1000) return s + Math.round(n / 1000) + "k";
+      return s + n.toLocaleString("en-US");
+    };
+    const toCny = (usd) => usd * FX_SEP;
+    const cnyLine = (usdAmount) => `≈ ${money0(toCny(usdAmount), "CNY")}`;
+    const wan = (n) => (n === 0 ? "0" : (n / 10000).toFixed(n % 10000 === 0 ? 0 : 1) + "万");
+    const pctStr = (x) => (x * 100).toFixed(x !== 0 && Math.abs(x) < 0.1 ? 1 : 0) + "%";
+
+    function delta(curr, prev) {
+      if (prev === 0) return curr > 0 ? { text: "新增", dir: "up", v: Infinity } : { text: "—", dir: "flat", v: 0 };
+      const r = (curr - prev) / prev;
+      if (Math.abs(r) < 0.0005) return { text: "持平", dir: "flat", v: 0 };
+      const s = Math.abs(r * 100);
+      const txt = s >= 1000 ? Math.round(s).toLocaleString("en-US") + "%" : s.toFixed(s >= 100 ? 0 : 1) + "%";
+      return r > 0 ? { text: "涨 " + txt, dir: "up", v: r } : { text: "跌 " + txt, dir: "down", v: r };
+    }
+
+    function runway(p) {
+      if (p.noBal) return { text: "—", cls: "flat", v: Infinity };
+      if (p.bal < 0) return { text: "欠费", cls: "bad", v: -1 };
+      const daily = p.week ? p.week.reduce((a, b) => a + b, 0) / p.week.length : p.avg;
+      if (daily === 0) return { text: "—", cls: "flat", v: Infinity };
+      const d = p.bal / daily;
+      const text = d < 0.1 ? "<0.1 天" : d.toFixed(1) + " 天";
+      return { text, cls: d < 1 ? "bad" : d < 3 ? "warn" : "ok", v: d };
+    }
+
+    const balPlatforms = platforms.filter((p) => !p.noBal);
+    const runways = balPlatforms.map(runway);
+    const lowCount = runways.filter((r) => r.cls === "bad" || r.cls === "warn").length;
+    const debtCount = runways.filter((r) => r.text === "欠费").length;
+
+    document.getElementById("stats").innerHTML = [
+      { value: money(T.mtd), label: "10 月累计消耗(18 天)", tone: "warning", d: delta(T.mtd, T.augSame), vs: "vs 9/1–9/18 " + money0(T.augSame) },
+      { value: money(T.d27), label: "昨日消耗(10/18)", tone: "", d: delta(T.d27, T.d26), vs: "vs 10/17 " + money0(T.d26) },
+      { value: money(T.avg), label: "10 月日均消耗", tone: "", d: delta(T.avg, T.augAvg), vs: "vs 9 月同期日均 " + money0(T.augAvg) },
+      { value: money(T.est), label: "预估 10 月总消耗", tone: "info", d: delta(T.est, T.augFull), vs: "vs 9 月整月 " + money0(T.augFull) },
+      { value: lowCount + " / " + balPlatforms.length, label: "余额告急账户(<3 天)", tone: "danger", d: { text: "", dir: "flat" }, vs: "Flux / LLM 账户 · 其中 " + debtCount + " 个欠费" },
+    ].map((s) =>
+      `<div class="stat ${s.tone}"><div class="top"><div class="value">${s.value}</div><div class="dir ${s.d.dir}">${s.d.text}</div></div><div class="label">${s.label}</div><div class="vs">${s.vs}</div></div>`
+    ).join("");
+
+    const byMtd = [...orPlatforms].sort((a, b) => b.mtd - a.mtd);
+
+    function sparkline(p, chartKey) {
+      const actual = p.week || [];
+      const forecast = forecastNextWeek(actual);
+      const vals = [...actual, ...forecast];
+      const labels = [...WEEK_LABELS, ...FC_LABELS];
+      const cur = p.cur || "CNY";
+      const n = vals.length;
+      const W = 540, H = 252, top = 26, left = 34, right = W - 10;
+      const plotBottom = 178;
+      const datePivotY = plotBottom + 16;
+      const dateAngle = -38;
+      const monthAvg = p.chartMonthAvg || 0;
+      const max = Math.max(...vals, monthAvg, 0.01) * 1.15;
+      const xAt = (i) => left + (i * (right - left)) / (n - 1);
+      const yAt = (v) => plotBottom - (v / max) * (plotBottom - top);
+      const axis = "#8a8a8a";
+      const splitX = (xAt(6) + xAt(7)) / 2;
+      const fcSum = forecast.reduce((a, b) => a + b, 0);
+      const ul = unitLabel(cur);
+      const dateSize = 10;
+      const clipId = "plot-" + chartKey;
+
+      function valLabelY(cy) {
+        const above = cy - 6;
+        if (above >= top + 6) return above;
+        return Math.min(cy + 11, plotBottom - 10);
+      }
+
+      const actualLine = actual.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
+      const fcLine = [`${xAt(6)},${yAt(actual[6])}`, ...forecast.map((v, i) => `${xAt(7 + i)},${yAt(v)}`)].join(" ");
+
+      const unitAxis = `单位：${ul}(${sym(cur)})`;
+      const midY = (top + plotBottom) / 2;
+
+      let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      s += `<defs><clipPath id="${clipId}"><rect x="${left - 2}" y="${top - 4}" width="${right - left + 4}" height="${plotBottom - top + 6}"/></clipPath></defs>`;
+      s += `<text x="10" y="${midY}" font-size="10" font-weight="600" fill="#f5c518" text-anchor="middle" transform="rotate(-90 10 ${midY})">${unitAxis}</text>`;
+      s += `<text x="${left}" y="14" font-size="10" fill="${axis}">实耗 · ${ul}</text>`;
+      s += `<text x="${right}" y="14" text-anchor="end" font-size="10" fill="#888">预估 · ${ul} · 合计 ${money0(fcSum, cur)}</text>`;
+      s += `<g clip-path="url(#${clipId})">`;
+      s += `<line x1="${left}" x2="${right}" y1="${plotBottom}" y2="${plotBottom}" stroke="#2a2a2a"/>`;
+      s += `<line x1="${splitX}" x2="${splitX}" y1="${top - 4}" y2="${plotBottom}" stroke="#444" stroke-dasharray="3 3"/>`;
+      s += `<polyline points="${actualLine}" fill="none" stroke="${p.color}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>`;
+      s += `<polyline points="${fcLine}" fill="none" stroke="${p.color}" stroke-width="2.1" stroke-dasharray="6 4" stroke-linejoin="round" opacity="0.85"/>`;
+      if (monthAvg > 0) {
+        const avgCy = yAt(monthAvg);
+        s += `<line x1="${left}" x2="${right}" y1="${avgCy}" y2="${avgCy}" stroke="#d4d4d4" stroke-width="1.3" stroke-dasharray="5 3"/>`;
+        s += `<text x="${left + 2}" y="${Math.max(top + 10, avgCy - 5)}" text-anchor="start" font-size="8.5" fill="#b0b0b0">10月日均 ${money0(monthAvg, cur)}</text>`;
+      }
+      vals.forEach((v, i) => {
+        const fc = i >= 7;
+        const cx = xAt(i);
+        const cy = yAt(v);
+        s += `<circle cx="${cx}" cy="${cy}" r="${fc ? 3 : 3.5}" fill="${fc ? "#1c1c1c" : p.color}" stroke="${p.color}" stroke-width="1.6"/>`;
+        s += `<text x="${cx}" y="${valLabelY(cy)}" text-anchor="middle" font-size="8.5" font-weight="600" fill="${fc ? "#9a9a9a" : p.color}">${money0(v, cur)}</text>`;
+      });
+      s += `</g>`;
+      s += `<line x1="${left}" x2="${right}" y1="${plotBottom}" y2="${plotBottom}" stroke="#3a3a3a"/>`;
+      for (let i = 0; i < n; i++) {
+        const fc = i >= 7;
+        const lx = xAt(i);
+        s += `<line x1="${lx}" x2="${lx}" y1="${plotBottom}" y2="${plotBottom + 3}" stroke="${fc ? "#555" : "#666"}" stroke-width="1"/>`;
+        s += `<text x="${lx}" y="${datePivotY}" text-anchor="start" font-size="${dateSize}" font-weight="500" fill="${fc ? "#888" : axis}" transform="rotate(${dateAngle} ${lx} ${datePivotY})">${labels[i]}</text>`;
+      }
+      return s + `</svg>`;
+    }
+
+    document.getElementById("multiples").innerHTML = byMtd.map((p, chartKey) => {
+      const cur = p.cur || "CNY";
+      const last = p.week[p.week.length - 1];
+      const prev = p.week[p.week.length - 2];
+      const d = delta(last, prev);
+      const r = runway(p);
+      const ul = unitLabel(cur);
+      const kpiCny = cur === "USD" ? `<span class="kpi-cny">${cnyLine(last)} 人民币</span>` : "";
+      const balCny = cur === "USD" ? `<span class="kpi-cny">${cnyLine(p.bal)} 人民币</span>` : "";
+      const footBal = p.noBal
+        ? `<span class="foot-bal"><span>余额 —（Novita 垫付）</span></span>`
+        : `<span class="foot-bal"><span>余额 ${money0(p.bal, cur)} (${ul})</span>${balCny}</span>`;
+      return `<div class="pcard">
+        <div class="head"><span class="name"><span class="dot" style="background:${p.color}"></span>${p.name}<span class="unit">${ul}</span></span><span class="share">消耗占比 ${pctStr(p.share)}</span></div>
+        <div class="kpi"><div class="kpi-main"><span class="v">${money0(last, cur)} <span class="d-label">${ul}</span></span>${kpiCny}</div><span class="d ${d.dir}"><span class="d-label">较前一天 </span>${d.text}</span></div>
+        <div class="pcard-chart">${sparkline(p, chartKey)}</div>
+        <div class="foot">${footBal}<span class="pill ${r.cls}">${r.text}</span></div>
+      </div>`;
+    }).join("");
+
+    (function drawLlmTrend() {
+      const el = document.getElementById("chart-llm-trend");
+      const orP = platforms.find((p) => p.name === "LLM · OpenRouter");
+      const nvP = platforms.find((p) => p.name === "LLM · Novita");
+      if (!orP || !nvP) return;
+
+      const fcOr = forecastNextWeek(orP.week);
+      const fcNv = forecastNextWeek(nvP.week);
+      const orAll = [...orP.week, ...fcOr];
+      const nvAll = [...nvP.week, ...fcNv];
+      const labels = [...WEEK_LABELS, ...FC_LABELS];
+      const n = labels.length;
+
+      const W = 880, H = 248, top = 32, bottom = H - 54, left = 62, right = W - 62;
+      const maxOr = Math.max(...orAll, orP.avg, 0.01) * 1.12;
+      const maxNv = Math.max(...nvAll, nvP.avg, 0.01) * 1.25;
+      const xAt = (i) => left + (i * (right - left)) / (n - 1);
+      const yOr = (v) => bottom - (v / maxOr) * (bottom - top);
+      const yNv = (v) => bottom - (v / maxNv) * (bottom - top);
+      const splitX = (xAt(6) + xAt(7)) / 2;
+      const axis = "#8a8a8a";
+      const grid = "#2a2a2a";
+      const dateY = bottom + 14;
+      const dateAngle = -40;
+
+      function linePoints(vals, yFn, fcStart) {
+        const actual = vals.slice(0, 7).map((v, i) => `${xAt(i)},${yFn(v)}`).join(" ");
+        const fc = [`${xAt(6)},${yFn(vals[6])}`, ...vals.slice(7).map((v, i) => `${xAt(7 + i)},${yFn(v)}`)].join(" ");
+        return { actual, fc };
+      }
+
+      const orLines = linePoints(orAll, yOr);
+      const nvLines = linePoints(nvAll, yNv);
+
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      svg += `<text x="${left}" y="14" font-size="10" font-weight="600" fill="${orP.color}">左轴 · LLM-openrouter · 美元</text>`;
+      svg += `<text x="${right}" y="14" text-anchor="end" font-size="10" font-weight="600" fill="${nvP.color}">右轴 · LLM-novita · 美元</text>`;
+
+      for (let t = 0; t <= 4; t++) {
+        const vOr = (maxOr * t) / 4;
+        const y = yOr(vOr);
+        svg += `<line x1="${left}" x2="${right}" y1="${y}" y2="${y}" stroke="${grid}"/>`;
+        svg += `<text x="${left - 6}" y="${y + 3}" text-anchor="end" font-size="9" fill="${axis}">${sparkPoint(vOr, "USD")}</text>`;
+      }
+      for (let t = 0; t <= 4; t++) {
+        const vNv = (maxNv * t) / 4;
+        const y = yNv(vNv);
+        svg += `<text x="${right + 6}" y="${y + 3}" text-anchor="start" font-size="9" fill="${axis}">${sparkPoint(vNv, "USD")}</text>`;
+      }
+
+      svg += `<line x1="${left}" x2="${right}" y1="${bottom}" y2="${bottom}" stroke="#3a3a3a"/>`;
+      svg += `<line x1="${splitX}" x2="${splitX}" y1="${top - 6}" y2="${bottom}" stroke="#444" stroke-dasharray="4 4"/>`;
+      svg += `<text x="${splitX}" y="${top - 10}" text-anchor="middle" font-size="9" fill="#888">预估 →</text>`;
+
+      const avgOrY = yOr(orP.avg);
+      const avgNvY = yNv(nvP.avg);
+      svg += `<line x1="${left}" x2="${right}" y1="${avgOrY}" y2="${avgOrY}" stroke="${orP.color}" stroke-width="1" stroke-dasharray="6 4" opacity="0.45"/>`;
+      svg += `<line x1="${left}" x2="${right}" y1="${avgNvY}" y2="${avgNvY}" stroke="${nvP.color}" stroke-width="1" stroke-dasharray="6 4" opacity="0.45"/>`;
+      svg += `<text x="${left + 4}" y="${Math.max(top + 10, avgOrY - 4)}" font-size="8" fill="${orP.color}">OpenRouter 10月日均 ${money0(orP.avg, "USD")}</text>`;
+      svg += `<text x="${right - 4}" y="${Math.min(bottom - 6, avgNvY - 4)}" text-anchor="end" font-size="8" fill="${nvP.color}">Novita 10月日均 ${money0(nvP.avg, "USD")}</text>`;
+
+      svg += `<polyline points="${orLines.actual}" fill="none" stroke="${orP.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+      svg += `<polyline points="${orLines.fc}" fill="none" stroke="${orP.color}" stroke-width="2" stroke-dasharray="6 4" stroke-linejoin="round" opacity="0.85"/>`;
+      svg += `<polyline points="${nvLines.actual}" fill="none" stroke="${nvP.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+      svg += `<polyline points="${nvLines.fc}" fill="none" stroke="${nvP.color}" stroke-width="2" stroke-dasharray="6 4" stroke-linejoin="round" opacity="0.85"/>`;
+
+      orAll.forEach((v, i) => {
+        const fc = i >= 7;
+        const cx = xAt(i);
+        const cy = yOr(v);
+        svg += `<circle cx="${cx}" cy="${cy}" r="${fc ? 3 : 3.5}" fill="${fc ? "#1c1c1c" : orP.color}" stroke="${orP.color}" stroke-width="1.5"/>`;
+        if (!fc || i === 7) {
+          svg += `<text x="${cx}" y="${cy - 7}" text-anchor="middle" font-size="8" font-weight="600" fill="${fc ? "#888" : orP.color}">${money0(v, "USD")}</text>`;
+        }
+      });
+      nvAll.forEach((v, i) => {
+        const fc = i >= 7;
+        const cx = xAt(i);
+        const cy = yNv(v);
+        svg += `<circle cx="${cx}" cy="${cy}" r="${fc ? 3 : 3.5}" fill="${fc ? "#1c1c1c" : nvP.color}" stroke="${nvP.color}" stroke-width="1.5"/>`;
+        if (!fc) {
+          svg += `<text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="8" font-weight="600" fill="${nvP.color}">${money0(v, "USD")}</text>`;
+        }
+      });
+
+      for (let i = 0; i < n; i++) {
+        const fc = i >= 7;
+        const lx = xAt(i);
+        svg += `<text x="${lx}" y="${dateY}" text-anchor="middle" font-size="9.5" font-weight="500" fill="${fc ? "#888" : axis}" transform="rotate(${dateAngle} ${lx} ${dateY})">${labels[i]}</text>`;
+      }
+
+      const fcOrSum = fcOr.reduce((a, b) => a + b, 0);
+      const fcNvSum = fcNv.reduce((a, b) => a + b, 0);
+      svg += `<text x="${left}" y="${H - 6}" font-size="9" fill="#888">预估 7 日合计 · OpenRouter ${money0(fcOrSum, "USD")} · Novita ${money0(fcNvSum, "USD")}</text>`;
+      svg += `</svg>`;
+      el.innerHTML = svg;
+
+      document.getElementById("llm-trend-legend").innerHTML = [
+        `<span class="legend-item"><span style="display:inline-block;width:14px;height:0;border-top:2.5px solid ${orP.color}"></span>LLM-openrouter（左轴）</span>`,
+        `<span class="legend-item"><span style="display:inline-block;width:14px;height:0;border-top:2.5px solid ${nvP.color}"></span>LLM-novita（右轴）</span>`,
+        `<span class="legend-item"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed var(--muted)"></span>预估段</span>`,
+        `<span class="legend-item"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed ${orP.color};opacity:.5"></span>10 月日均</span>`,
+      ].join("");
+    })();
+
+    (function drawWaterfall() {
+      const el = document.getElementById("chart-waterfall");
+      const rows = [{ name: "9 月同期", kind: "total", v: T.augSame }];
+      [...orPlatforms].sort((a, b) => (b.mtd - b.augSame) - (a.mtd - a.augSame)).forEach((p) => rows.push({ name: p.name, kind: "delta", v: p.mtd - p.augSame }));
+      rows.push({ name: "10 月当期", kind: "total", v: T.mtd });
+
+      const W = 880, left = 150, right = W - 96, rowH = 22, top = 20;
+      const H = top + rows.length * rowH + 8;
+      const peak = Math.max(T.augSame, T.mtd, 1);
+      const xMax = Math.max(1000, Math.ceil(peak * 1.08 / 1000) * 1000);
+      const x = (v) => left + (v / xMax) * (right - left);
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      for (let t = 0; t <= xMax; t += 1000) {
+        svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${H - 6}" stroke="#2a2a2a"/>`;
+        svg += `<text x="${x(t)}" y="${top - 8}" text-anchor="middle" font-size="10" fill="#8a8a8a">${wan(t)}</text>`;
+      }
+      let cum = 0;
+      rows.forEach((r, i) => {
+        const cy = top + i * rowH + rowH / 2;
+        let x0, x1, color, label;
+        if (r.kind === "total") {
+          x0 = x(0); x1 = x(r.v); cum = r.v;
+          color = i === 0 ? "#6b6b6b" : "#f0a040";
+          label = money0(r.v);
+        } else {
+          const next = cum + r.v;
+          x0 = x(Math.min(cum, next)); x1 = x(Math.max(cum, next));
+          color = r.v >= 0 ? "#ff5c5c" : "#3ddc84";
+          label = (r.v >= 0 ? "+" : "") + money0(r.v);
+          cum = next;
+        }
+        if (i > 0) svg += `<line x1="${x(r.kind === "total" ? cum : cum - r.v)}" x2="${x(r.kind === "total" ? cum : cum - r.v)}" y1="${cy - rowH + 7}" y2="${cy - 7}" stroke="#555" stroke-dasharray="2 2"/>`;
+        svg += `<text x="${left - 10}" y="${cy}" text-anchor="end" dominant-baseline="middle" font-size="11" fill="${r.kind === "total" ? "#f2f2f2" : "#c8c8c8"}" font-weight="${r.kind === "total" ? 600 : 400}">${r.name}</text>`;
+        svg += `<rect x="${x0}" y="${cy - 7}" width="${Math.max(1.5, x1 - x0)}" height="14" rx="2" fill="${color}" opacity="${r.kind === "total" ? 0.9 : 0.85}"/>`;
+        svg += `<text x="${x1 + 6}" y="${cy}" dominant-baseline="middle" font-size="10.5" font-weight="600" fill="${r.kind === "total" ? "#f2f2f2" : color}">${label}</text>`;
+      });
+      svg += `</svg>`;
+      el.innerHTML = svg;
+    })();
+
+    (function drawMix() {
+      const el = document.getElementById("chart-mix");
+      const W = 880, left = 150, right = W - 10, barH = 22, gap = 10, top = 4;
+      const rows = [
+        { name: "9 月同期", total: T.augSame, key: "augShare" },
+        { name: "10 月当期", total: T.mtd, key: "share" },
+      ];
+      const H = top + rows.length * (barH + gap);
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      rows.forEach((r, ri) => {
+        const y0 = top + ri * (barH + gap);
+        svg += `<text x="${left - 10}" y="${y0 + barH / 2 - 5}" text-anchor="end" dominant-baseline="middle" font-size="11" font-weight="600" fill="#f2f2f2">${r.name}</text>`;
+        svg += `<text x="${left - 10}" y="${y0 + barH / 2 + 8}" text-anchor="end" dominant-baseline="middle" font-size="10" fill="#8a8a8a">${money0(r.total)}</text>`;
+        let cx = left;
+        byMtd.forEach((p) => {
+          const w = p[r.key] * (right - left);
+          if (w <= 0) return;
+          svg += `<rect x="${cx}" y="${y0}" width="${Math.max(0, w - 1)}" height="${barH}" fill="${p.color}" opacity="0.85"><title>${p.name} ${pctStr(p[r.key])}</title></rect>`;
+          if (w > 34) svg += `<text x="${cx + w / 2}" y="${y0 + barH / 2}" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="650" fill="#141414">${pctStr(p[r.key])}</text>`;
+          cx += w;
+        });
+      });
+      svg += `</svg>`;
+      el.innerHTML = svg;
+      document.getElementById("mix-legend").innerHTML = byMtd.map((p) =>
+        `<span class="legend-item"><span class="dot" style="background:${p.color}"></span>${p.name}</span>`
+      ).join("");
+    })();
+
+    const maxMtd = Math.max(...orPlatforms.map((p) => Math.max(p.mtd, p.augSame)));
+    const maxEst = Math.max(...orPlatforms.map((p) => Math.max(p.est, p.augFull)));
+    const barCell = (curr, prev, max, color) =>
+      `<div class="cell-bar"><span>${money(curr)}</span><div class="bar"><i style="width:${(curr / max) * 100}%;background:${color}"></i><b style="left:${(prev / max) * 100}%"></b></div><span class="sm">对比 ${money(prev)}</span></div>`;
+
+    const GROUPS = {
+      mtd: { label: "月累计 · 10/1–10/18 vs 9/1–9/18" },
+      day: { label: "昨日消耗" },
+      est: { label: "整月预估 · 10 月 vs 9 月" },
+    };
+    const deltaCell = (d) => `<span class="${d.dir}">${d.text}</span>`;
+
+    const columns = [
+      { label: "费用项", sort: (p) => p.name, render: (p) => `<span class="dot" style="background:${p.color};margin-right:6px"></span>${p.name}`, foot: () => "合计" },
+      { label: "占比", sort: (p) => p.share, render: (p) => pctStr(p.share), foot: () => "100%" },
+      { label: "10 月当期 vs 9 月同期", group: "mtd", sort: (p) => p.mtd, render: (p) => barCell(p.mtd, p.augSame, maxMtd, "#4da3ff"), foot: () => money(T.mtd) },
+      { label: "环比", group: "mtd", sort: (p) => delta(p.mtd, p.augSame).v, render: (p) => deltaCell(delta(p.mtd, p.augSame)), foot: () => deltaCell(delta(T.mtd, T.augSame)) },
+      { label: "10/18", group: "day", sort: (p) => p.d27, render: (p) => money(p.d27), foot: () => money(T.d27) },
+      { label: "较 10/17", group: "day", sort: (p) => delta(p.d27, p.d26).v, render: (p) => deltaCell(delta(p.d27, p.d26)), foot: () => deltaCell(delta(T.d27, T.d26)) },
+      { label: "预估 10 月 vs 9 月整月", group: "est", sort: (p) => p.est, render: (p) => barCell(p.est, p.augFull, maxEst, "#b07aff"), foot: () => money(T.est) },
+      { label: "同比整月", group: "est", sort: (p) => delta(p.est, p.augFull).v, render: (p) => deltaCell(delta(p.est, p.augFull)), foot: () => deltaCell(delta(T.est, T.augFull)) },
+      { label: "账户余额", sort: (p) => p.bal, render: (p) => `<span style="color:${p.bal < 0 ? "var(--red)" : "inherit"}">${money(p.bal)}</span>`, foot: () => "" },
+      { label: "可撑天数", sort: (p) => runway(p).v, render: (p) => { const r = runway(p); return `<span class="pill ${r.cls}">${r.text}</span>`; }, foot: () => "" },
+    ];
+    const gcls = (c) => (c.group ? "g-" + c.group : "");
+
+    let sortIdx = 2, sortDesc = true;
+    function renderTable() {
+      const groupRow = [];
+      columns.forEach((c) => {
+        const last = groupRow[groupRow.length - 1];
+        if (last && c.group && last.group === c.group) last.span++;
+        else groupRow.push({ group: c.group, span: 1 });
+      });
+      document.getElementById("thead-group").innerHTML = groupRow.map((g) =>
+        g.group ? `<th colspan="${g.span}" class="grp ${"g-" + g.group}">${GROUPS[g.group].label}</th>` : `<th colspan="${g.span}" class="grp"></th>`
+      ).join("");
+      document.getElementById("thead").innerHTML = columns.map((c, i) =>
+        `<th data-i="${i}" class="${gcls(c)} ${i === sortIdx ? "sorted" : ""}">${c.label}${i === sortIdx ? (sortDesc ? " ↓" : " ↑") : ""}</th>`
+      ).join("");
+      const f = columns[sortIdx].sort;
+      const rows = [...orPlatforms].sort((a, b) => {
+        const va = f(a), vb = f(b);
+        const c = typeof va === "string" ? va.localeCompare(vb, "zh") : va - vb;
+        return sortDesc ? -c : c;
+      });
+      document.getElementById("tbody").innerHTML = rows.map((p) => `<tr>${columns.map((c) => `<td class="${gcls(c)}">${c.render(p)}</td>`).join("")}</tr>`).join("");
+      document.getElementById("tfoot").innerHTML = `<tr>${columns.map((c) => `<td class="${gcls(c)}">${c.foot()}</td>`).join("")}</tr>`;
+      document.querySelectorAll("#thead th").forEach((th) => th.addEventListener("click", () => {
+        const i = +th.dataset.i;
+        if (i === sortIdx) sortDesc = !sortDesc; else { sortIdx = i; sortDesc = i !== 0; }
+        renderTable();
+      }));
+    }
+    renderTable();
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("加载失败：" + src));
+        document.head.appendChild(s);
+      });
+    }
+
+    document.getElementById("export-btn").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = "导出中…";
+      try {
+        if (!window.html2canvas) await loadScript("https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js");
+        const canvas = await html2canvas(document.querySelector(".wrap"), {
+          backgroundColor: "#141414",
+          scale: 2,
+          ignoreElements: (el) => el.id === "export-btn",
+        });
+        const a = document.createElement("a");
+        a.href = canvas.toDataURL("image/png");
+        a.download = "OpenRouter费用趋势看板_10-18.png";
+        a.click();
+      } catch (err) {
+        alert("导出失败，请检查网络后重试。\n" + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "导出图片";
+      }
+    });
+  </script>
+</body>
+</html>

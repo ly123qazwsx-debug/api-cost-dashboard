@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI资金 · 2026年9月</title>
+  <style>
+    :root {
+      --bg: #141414;
+      --card: #1c1c1c;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --axis: #8a8a8a;
+      --grid: #2a2a2a;
+      --stroke: #2f2f2f;
+      --blue: #4da3ff;
+      --green: #3ddc84;
+      --yellow: #f5c518;
+      --red: #ff5c5c;
+      --purple: #b07aff;
+      --orange: #f0a040;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    h1 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+    .sub { font-size: 12px; color: var(--muted); }
+    .title-right { display: flex; align-items: center; gap: 10px; }
+    .export-btn {
+      font: inherit;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .export-btn:hover { border-color: #555; }
+    .export-btn:disabled { color: var(--muted); cursor: wait; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .stats.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .stat .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .stat .value { font-size: 20px; font-weight: 650; line-height: 26px; white-space: nowrap; }
+    .stat .label, .stat .dir { font-size: 12px; line-height: 16px; }
+    .stat .label { color: var(--muted); }
+    .stat .vs { font-size: 10px; line-height: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat .dir { font-weight: 650; white-space: nowrap; }
+    .stat.danger .value { color: var(--red); }
+    .stat.warning .value { color: var(--orange); }
+    .stat.success .value { color: var(--green); }
+    .stat.info .value { color: var(--blue); }
+    .good { color: var(--green); }
+    .bad { color: var(--red); }
+    .flat { color: var(--muted); }
+    .section { display: flex; flex-direction: column; gap: 6px; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .section-title { font-size: 12px; font-weight: 600; }
+    .legend { display: flex; justify-content: flex-end; gap: 14px; flex-wrap: wrap; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .dot { width: 10px; height: 10px; border-radius: 5px; display: inline-block; flex-shrink: 0; }
+    svg { width: 100%; height: auto; display: block; }
+    .note { font-size: 11px; color: var(--muted); line-height: 17px; }
+    .note b { color: var(--yellow); font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 6px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+    th { color: var(--muted); font-weight: 500; font-size: 11px; cursor: pointer; user-select: none; }
+    th:hover { color: var(--text); }
+    th.sorted { color: var(--text); }
+    th.nosort { cursor: default; }
+    th:first-child, td:first-child { text-align: left; }
+    td.note-cell { text-align: left; color: var(--muted); white-space: normal; min-width: 180px; max-width: 340px; font-size: 11px; }
+    tbody tr:hover { background: #1a1a1a; }
+    tr.sum td { font-weight: 650; background: rgba(245, 197, 24, 0.06); }
+    tr.total td { font-weight: 650; background: rgba(77, 163, 255, 0.08); }
+    .table-wrap { background: var(--card); border: 1px solid var(--stroke); border-radius: 8px; padding: 4px 6px; overflow-x: auto; }
+    .chart-card { background: var(--card); border: 1px solid var(--stroke); border-radius: 8px; padding: 8px 8px 4px; }
+    @media (max-width: 900px) {
+      .stats, .stats.cols-3 { grid-template-columns: 1fr 1fr; }
+      .stat .value { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title-row">
+      <div>
+        <h1>AI资金 · 2026年9月</h1>
+        <div class="sub">汇报看板 · 数据截止 2026-10-01 · 对比 8月（截止 2026-09-01）· 人民币</div>
+      </div>
+      <div class="title-right">
+        <button id="export-btn" class="export-btn" type="button">导出图片</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">资金位置</div>
+      <div class="stats cols-3" id="cash-stats"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">经营成果</div>
+      <div class="stats" id="pnl-stats"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">资金与经营对照 · 8月 vs 9月（万元）</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="note">实际资金余额 = 账面 − 待支付。毛利 = 总收入 − 营业成本。净利率 = 净亏损 ÷ 总收入。</div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">亏损归因：8月 → 9月（正数扩大亏损，负数收窄亏损）</div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot" style="background:var(--red)"></span>扩大亏损</span>
+          <span class="legend-item"><span class="dot" style="background:var(--green)"></span>收窄亏损</span>
+        </div>
+      </div>
+      <div class="chart-card" id="chart-waterfall"></div>
+      <div class="note">「其他」含 runway/cursor、流量费、其他平台、房租、报销、杂项、银行手续费、平台手续费、欧盟增值税，净额 +0.3万。人力为工资下降 0.1万、社保上升 0.5万后的净额。代账 +0.5万为 BVI 财报、香港审计、爱沙尼亚海牙认证，属一次性费用。</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">成本结构（占当月总成本）</div>
+      <div class="chart-card" id="chart-mix"></div>
+      <div class="legend" id="mix-legend" style="justify-content:flex-start"></div>
+      <div class="note">9月营业成本 82.5万，低于当月用户付费 85.9万，毛利 3.4万。NOVITA 占比从 35.9% 降到 25.5%，较上月少 8.2万（机器从 9月初 200 卡减到 10月初 139 卡；账单对账中，此为内部调账数；目标 25万，实际 33.4万）。GPU 从 5.6万升到 13.2万：UCloud 48 卡 8.7万、易信 4 台（32 卡）4.5万。API 充值 11.0万（目标 7万，主要是 Fal H3 Max、速创、智创）。OpenRouter 由 8月 4 天的 2.1万增至整月 8.4万。广告投流含海外达人 3.2万。</div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">待付成本 · 全部未付明细</div>
+      </div>
+      <div class="table-wrap" id="payable-table"></div>
+      <div class="note">截至 10月1日尚未付出的全部项目，含 3–9月流量费和 7–9月增值税。合计与账面待支付一致。</div>
+    </div>
+
+  </div>
+
+  <script>
+    const book = [8072566.65, 7700761.64];
+    const actual = [7026952.55, 6544029.97];
+    const payable = [1045614.10, 1156731.67];
+    const revenue = [819114.44, 858654.66];
+    const receipt = [708365.90, 746161.95];
+    const cogs = [711458.18, 824706.95];
+    const people = [248581.48, 252295.25];
+    const other = [197213.74, 235128.76];
+    const totalCost = [1157253.40, 1312130.97];
+    const loss = [338138.96, 453476.31];
+    const gross = [107656.26, 33947.70];
+
+    const AUG = 0, SEP = 1;
+    const rows = [
+      { name: "账面余额", aug: book[AUG], sep: book[SEP], kind: "fund" },
+      { name: "待支付", aug: payable[AUG], sep: payable[SEP], kind: "cost" },
+      { name: "实际资金余额", aug: actual[AUG], sep: actual[SEP], kind: "fund", sum: true },
+      { name: "总收入", aug: revenue[AUG], sep: revenue[SEP], kind: "income" },
+      { name: "实际到账", aug: receipt[AUG], sep: receipt[SEP], kind: "income" },
+      { name: "人力成本", aug: people[AUG], sep: people[SEP], kind: "cost" },
+      { name: "营业成本", aug: cogs[AUG], sep: cogs[SEP], kind: "cost" },
+      { name: "其他成本", aug: other[AUG], sep: other[SEP], kind: "cost" },
+      { name: "总成本", aug: totalCost[AUG], sep: totalCost[SEP], kind: "cost", total: true },
+      { name: "毛利润", aug: gross[AUG], sep: gross[SEP], kind: "profit", sum: true },
+      { name: "净亏损", aug: loss[AUG], sep: loss[SEP], kind: "cost", total: true },
+      { name: "净利率", aug: -loss[AUG] / revenue[AUG], sep: -loss[SEP] / revenue[SEP], kind: "rate", total: true },
+    ];
+
+    const payItems = [
+      { name: "NOVITA", month: "8月", v: 415948.81 },
+      { name: "NOVITA", month: "9月", v: 333967.53 },
+      { name: "AWS", month: "9月", v: 127974.29 },
+      { name: "流量费", month: "3月", v: 16120 },
+      { name: "流量费", month: "4月", v: 15600 },
+      { name: "流量费", month: "5月", v: 16120 },
+      { name: "流量费", month: "6月", v: 15600 },
+      { name: "流量费", month: "7月", v: 16120 },
+      { name: "流量费", month: "8月", v: 16120 },
+      { name: "流量费", month: "9月", v: 15600 },
+      { name: "API待付", month: "—", v: 48959.35 },
+      { name: "易信机器", month: "9月", v: 45186.66 },
+      { name: "社保", month: "9月", v: 34346.17 },
+      { name: "咖啡店待付", month: "—", v: 11309.54 },
+      { name: "员工报销", month: "—", v: 12740.33 },
+      { name: "欧盟增值税", month: "7月", v: 4294.75 },
+      { name: "欧盟增值税", month: "8月", v: 4379.03 },
+      { name: "欧盟增值税", month: "9月", v: 4345.21 },
+      { name: "电费", month: "9月", v: 2000 },
+    ];
+
+    const mixItems = [
+      { name: "人力", color: "#8a8a8a", aug: people[AUG], sep: people[SEP] },
+      { name: "NOVITA", color: "#4da3ff", aug: 415948.81, sep: 333967.53 },
+      { name: "GPU机器", color: "#f0a040", aug: 56049.17, sep: 132159.48 },
+      { name: "AWS", color: "#f5c518", aug: 120151.80, sep: 127974.29 },
+      { name: "API充值", color: "#3ddc84", aug: 64164.93, sep: 110359.75 },
+      { name: "OpenRouter", color: "#b07aff", aug: 21416.29, sep: 84177.51 },
+      { name: "平台手续费", color: "#ff8a5c", aug: 110748.54, sep: 112492.71 },
+      { name: "广告投流", color: "#ff5c5c", aug: 33872.20, sep: 66183.96 },
+      { name: "其他", color: "#5c6b7a", aug: 86320.18, sep: 92520.49 },
+    ];
+
+    const money = (n) => (n < 0 ? "-" : "") + "¥" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const money0 = (n) => (n < 0 ? "-" : "") + "¥" + Math.abs(Math.round(n)).toLocaleString("en-US");
+    const wan = (n) => (n / 10000).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const wanSigned = (n) => (n < 0 ? "-" : "") + wan(Math.abs(n));
+    const pct = (x) => {
+      const s = Math.abs(x * 100);
+      const t = s >= 100 ? s.toFixed(0) : s.toFixed(1);
+      return t + "%";
+    };
+
+    function move(curr, prev, kind) {
+      if (prev === 0) return { text: "—", cls: "flat" };
+      const r = (curr - prev) / Math.abs(prev);
+      if (Math.abs(r) < 0.0005) return { text: "持平", cls: "flat" };
+      const up = r > 0;
+      const text = (up ? "涨 " : "跌 ") + pct(r);
+      const good = kind === "cost" ? !up : up;
+      return { text, cls: good ? "good" : "bad" };
+    }
+
+    function statCard(s) {
+      return `<div class="stat ${s.tone || ""}"><div class="top"><div class="value">${s.value}</div><div class="dir ${s.d.cls}">${s.d.text}</div></div><div class="label">${s.label}</div><div class="vs">${s.vs}</div></div>`;
+    }
+
+    const cashStats = [
+      { value: money0(actual[SEP]), label: "实际资金余额", tone: "danger", d: move(actual[SEP], actual[AUG], "fund"), vs: "vs 8月 " + money0(actual[AUG]) + " · 少 " + money0(actual[AUG] - actual[SEP]) },
+      { value: money0(book[SEP]), label: "账面余额（10月1日）", tone: "", d: move(book[SEP], book[AUG], "fund"), vs: "vs 8月 " + money0(book[AUG]) },
+      { value: money0(payable[SEP]), label: "待支付", tone: "warning", d: move(payable[SEP], payable[AUG], "cost"), vs: "vs 8月 " + money0(payable[AUG]) + " · 多 " + money0(payable[SEP] - payable[AUG]) },
+    ];
+    document.getElementById("cash-stats").innerHTML = cashStats.map(statCard).join("");
+
+    const margin = (i) => -loss[i] / revenue[i];
+    const gMargin = (i) => gross[i] / revenue[i];
+    const pnlStats = [
+      { value: money0(revenue[SEP]), label: "总收入（用户付费）", tone: "success", d: move(revenue[SEP], revenue[AUG], "income"), vs: "实际到账 " + money0(receipt[SEP]) + " · 8月收入 " + money0(revenue[AUG]) },
+      { value: money0(totalCost[SEP]), label: "总成本", tone: "warning", d: move(totalCost[SEP], totalCost[AUG], "cost"), vs: "vs 8月 " + money0(totalCost[AUG]) + " · 多 " + money0(totalCost[SEP] - totalCost[AUG]) },
+      { value: money0(loss[SEP]), label: "净亏损", tone: "danger", d: move(loss[SEP], loss[AUG], "cost"), vs: "8月 " + money0(loss[AUG]) + " · 净利率 " + (margin(SEP) * 100).toFixed(1) + "%（8月 " + (margin(AUG) * 100).toFixed(1) + "%）" },
+      { value: money0(gross[SEP]), label: "毛利润", tone: "warning", d: move(gross[SEP], gross[AUG], "profit"), vs: "毛利率 " + (gMargin(SEP) * 100).toFixed(1) + "% · 8月 " + (gMargin(AUG) * 100).toFixed(1) + "% · 营业成本低于收入" },
+    ];
+    document.getElementById("pnl-stats").innerHTML = pnlStats.map(statCard).join("");
+
+    (function drawWaterfall() {
+      const wf = [
+        { name: "8月亏损", kind: "total", v: 338138.96 },
+        { name: "NOVITA", kind: "delta", v: -81981.28 },
+        { name: "GPU机器", kind: "delta", v: 76110.31 },
+        { name: "OpenRouter", kind: "delta", v: 62761.22 },
+        { name: "API充值", kind: "delta", v: 46194.82 },
+        { name: "收入增加", kind: "delta", v: -39540.22 },
+        { name: "广告投流", kind: "delta", v: 32311.76 },
+        { name: "AWS", kind: "delta", v: 7822.49 },
+        { name: "代账费用", kind: "delta", v: 4955.06 },
+        { name: "人力成本", kind: "delta", v: 3713.77 },
+        { name: "其他", kind: "delta", v: 2989.42 },
+        { name: "9月亏损", kind: "total", v: 453476.31 },
+      ];
+      const W = 1040, left = 108, right = W - 78, rowH = 22, top = 22;
+      const H = top + wf.length * rowH + 8;
+      const xMax = 600000;
+      const x = (v) => left + (Math.max(0, v) / xMax) * (right - left);
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      for (let t = 0; t <= xMax; t += 150000) {
+        svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${H - 6}" stroke="#2a2a2a"/>`;
+        svg += `<text x="${x(t)}" y="${top - 8}" text-anchor="middle" font-size="10" fill="#8a8a8a">${t === 0 ? "0" : wan(t) + "万"}</text>`;
+      }
+      let cum = 0;
+      wf.forEach((r, i) => {
+        const cy = top + i * rowH + rowH / 2;
+        let x0, x1, color, label;
+        if (r.kind === "total") {
+          x0 = x(0); x1 = x(r.v); cum = r.v;
+          color = i === 0 ? "#6b6b6b" : "#f0a040";
+          label = wan(r.v) + "万";
+        } else {
+          const next = cum + r.v;
+          x0 = x(Math.min(cum, next)); x1 = x(Math.max(cum, next));
+          color = r.v >= 0 ? "#ff5c5c" : "#3ddc84";
+          label = (r.v >= 0 ? "+" : "-") + wan(Math.abs(r.v)) + "万";
+          cum = next;
+        }
+        svg += `<text x="${left - 8}" y="${cy}" text-anchor="end" dominant-baseline="middle" font-size="11" fill="${r.kind === "total" ? "#f2f2f2" : "#c8c8c8"}" font-weight="${r.kind === "total" ? 600 : 400}">${r.name}</text>`;
+        svg += `<rect x="${x0}" y="${cy - 7}" width="${Math.max(1.5, x1 - x0)}" height="14" rx="2" fill="${color}"/>`;
+        svg += `<text x="${x1 + 6}" y="${cy}" dominant-baseline="middle" font-size="10.5" font-weight="600" fill="${r.kind === "total" ? "#f2f2f2" : color}">${label}</text>`;
+      });
+      document.getElementById("chart-waterfall").innerHTML = svg + "</svg>";
+    })();
+
+    (function drawMix() {
+      const W = 1040, left = 88, right = W - 72, barH = 28, gap = 18, top = 8;
+      const bands = [
+        { name: "8月", total: totalCost[AUG], key: "aug" },
+        { name: "9月", total: totalCost[SEP], key: "sep" },
+      ];
+      const H = top + bands.length * (barH + gap);
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      bands.forEach((b, bi) => {
+        const y0 = top + bi * (barH + gap);
+        svg += `<text x="${left - 8}" y="${y0 + 11}" text-anchor="end" font-size="12" font-weight="600" fill="#f2f2f2">${b.name}</text>`;
+        svg += `<text x="${left - 8}" y="${y0 + 24}" text-anchor="end" font-size="10" fill="#8a8a8a">${wan(b.total)}万</text>`;
+        let cx = left;
+        mixItems.forEach((p) => {
+          const share = p[b.key] / b.total;
+          const w = share * (right - left);
+          if (w <= 0) return;
+          svg += `<rect x="${cx}" y="${y0}" width="${Math.max(0, w - 1)}" height="${barH}" fill="${p.color}"><title>${p.name} ${pct(share)}</title></rect>`;
+          if (w > 46) svg += `<text x="${cx + w / 2}" y="${y0 + barH / 2}" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="650" fill="#141414">${pct(share)}</text>`;
+          cx += w;
+        });
+      });
+      document.getElementById("chart-mix").innerHTML = svg + "</svg>";
+      document.getElementById("mix-legend").innerHTML = mixItems.map((p) =>
+        `<span class="legend-item"><span class="dot" style="background:${p.color}"></span>${p.name}</span>`
+      ).join("");
+    })();
+
+    (function drawPayable() {
+      const sum = payItems.reduce((a, p) => a + p.v, 0);
+      let html = `<table><thead><tr><th class="nosort">项目</th><th class="nosort">所属月份</th><th class="nosort">金额</th><th class="nosort">占待支付</th></tr></thead><tbody>`;
+      payItems.forEach((p) => {
+        html += `<tr><td>${p.name}</td><td>${p.month}</td><td>${money(p.v)}</td><td>${pct(p.v / sum)}</td></tr>`;
+      });
+      html += `<tr class="total"><td>合计</td><td></td><td>${money(sum)}</td><td>100%</td></tr></tbody></table>`;
+      document.getElementById("payable-table").innerHTML = html;
+    })();
+
+    function amountCell(r, v) {
+      if (r.kind === "rate") return (v * 100).toFixed(1) + "%";
+      if (r.kind === "cost") return "-" + wan(v);
+      if (r.kind === "profit") return wanSigned(v);
+      return wan(v);
+    }
+
+    const columns = [
+      { label: "项目", render: (r) => r.name },
+      { label: "9月", render: (r) => amountCell(r, r.sep) },
+      { label: "8月", render: (r) => amountCell(r, r.aug) },
+      { label: "增减", render: (r) => {
+        if (r.kind === "rate") {
+          const pp = (r.sep - r.aug) * 100;
+          return `<span class="bad">${pp.toFixed(1)}个百分点</span>`;
+        }
+        const d = r.sep - r.aug;
+        const show = r.kind === "cost" ? -d : d;
+        const cls = move(r.sep, r.aug, r.kind).cls;
+        const text = (show > 0 ? "+" : show < 0 ? "-" : "") + wan(Math.abs(show));
+        return `<span class="${cls}">${text}</span>`;
+      }},
+      { label: "环比", render: (r) => {
+        if (r.kind === "rate") return `<span class="bad">恶化 ${((r.aug - r.sep) * 100).toFixed(1)}个百分点</span>`;
+        const m = move(r.sep, r.aug, r.kind);
+        return `<span class="${m.cls}">${m.text}</span>`;
+      }},
+    ];
+
+    document.getElementById("thead").innerHTML = columns.map((c) => `<th class="nosort">${c.label}</th>`).join("");
+    document.getElementById("tbody").innerHTML = rows.map((r) => {
+      const cls = r.total ? "total" : r.sum ? "sum" : "";
+      return `<tr class="${cls}">${columns.map((c) => `<td>${c.render(r)}</td>`).join("")}</tr>`;
+    }).join("");
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("加载失败：" + src));
+        document.head.appendChild(s);
+      });
+    }
+    document.getElementById("export-btn").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = "导出中…";
+      try {
+        if (!window.html2canvas) await loadScript("https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js");
+        const canvas = await html2canvas(document.querySelector(".wrap"), {
+          backgroundColor: "#141414",
+          scale: 2,
+          ignoreElements: (el) => el.id === "export-btn",
+        });
+        const a = document.createElement("a");
+        a.href = canvas.toDataURL("image/png");
+        a.download = "AI资金看板_2026-09.png";
+        a.click();
+      } catch (err) {
+        alert("导出失败，请检查网络后重试。\n" + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "导出图片";
+      }
+    });
+  </script>
+</body>
+</html>

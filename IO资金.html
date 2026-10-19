@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IO资金 · 截止2026年10月10日</title>
+  <style>
+    :root {
+      --bg: #141414;
+      --card: #1c1c1c;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --axis: #8a8a8a;
+      --grid: #2a2a2a;
+      --stroke: #2f2f2f;
+      --blue: #4da3ff;
+      --green: #3ddc84;
+      --yellow: #f5c518;
+      --red: #ff5c5c;
+      --purple: #b07aff;
+      --orange: #f0a040;
+      --teal: #3ecfcf;
+      --gray: #8a8a8a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    h1 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+    .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .title-right { display: flex; align-items: center; gap: 10px; }
+    .export-btn {
+      font: inherit;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .export-btn:hover { border-color: #555; }
+    .export-btn:disabled { color: var(--muted); cursor: wait; }
+    .lead {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.65;
+      color: #d4d4d4;
+    }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .stat .value { font-size: 20px; font-weight: 650; line-height: 26px; white-space: nowrap; }
+    .stat .label, .stat .vs { font-size: 12px; line-height: 16px; }
+    .stat .label { color: var(--muted); }
+    .stat .vs { font-size: 11px; color: var(--muted); }
+    .stat.danger .value { color: var(--red); }
+    .stat.success .value { color: var(--green); }
+    .stat.info .value { color: var(--blue); }
+    .section { display: flex; flex-direction: column; gap: 6px; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .section-title { font-size: 12px; font-weight: 600; }
+    .legend { display: flex; justify-content: flex-end; gap: 14px; flex-wrap: wrap; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .dot { width: 10px; height: 10px; border-radius: 5px; display: inline-block; flex-shrink: 0; }
+    svg { width: 100%; height: auto; display: block; }
+    .note { font-size: 11px; color: var(--muted); line-height: 17px; }
+    .note b { color: var(--yellow); font-weight: 600; }
+    .chart-card { background: var(--card); border: 1px solid var(--stroke); border-radius: 8px; padding: 8px 8px 4px; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 6px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+    th { color: var(--muted); font-weight: 500; font-size: 11px; }
+    th:first-child, td:first-child, th.left, td.left { text-align: left; }
+    tbody tr:hover { background: #1a1a1a; }
+    tr.total td { font-weight: 650; background: rgba(77, 163, 255, 0.08); }
+    .table-wrap { background: var(--card); border: 1px solid var(--stroke); border-radius: 8px; padding: 4px 6px; overflow-x: auto; }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .step {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 10px 12px;
+      border-top: 2px solid var(--blue);
+    }
+    .step.now { border-top-color: var(--green); }
+    .step.soon { border-top-color: var(--yellow); }
+    .step.later { border-top-color: var(--orange); }
+    .step .when { font-size: 11px; color: var(--muted); }
+    .step .what { margin-top: 4px; font-size: 13px; font-weight: 600; }
+    .step .detail { margin-top: 4px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+    @media (max-width: 900px) {
+      .stats, .split, .steps { grid-template-columns: 1fr 1fr; }
+      .stat .value { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title-row">
+      <div>
+        <h1>IO 银行账户资金情况</h1>
+        <div class="sub">截止 2026年10月10日 · 人民币</div>
+      </div>
+      <div class="title-right">
+        <button id="export-btn" class="export-btn" type="button">导出图片</button>
+      </div>
+    </div>
+
+    <p class="lead">当前账户余额 2,678,616.79 元，另有待收回 3,871,663.54 元、待付费用 4,530,465.35 元。款项处理完毕后，预计账户余额 2,019,814.99 元。现有项目均已暂停；「觅伊」拟于下半月全部暂停。本月底完成项目及人员清理，平台事项延续处理至 12 月。</p>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">结算桥：当前余额 → 处理完毕（万元）</div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot" style="background:var(--gray)"></span>当前余额</span>
+          <span class="legend-item"><span class="dot" style="background:var(--green)"></span>待收回</span>
+          <span class="legend-item"><span class="dot" style="background:var(--red)"></span>待付</span>
+          <span class="legend-item"><span class="dot" style="background:var(--blue)"></span>预计余额</span>
+        </div>
+      </div>
+      <div class="chart-card" id="chart-bridge"></div>
+    </div>
+
+    <div class="split">
+      <div class="section">
+        <div class="section-title">待收回构成 · 387.17 万</div>
+        <div class="chart-card" id="chart-in"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">待付构成 · 453.05 万</div>
+        <div class="chart-card" id="chart-out"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">项目与清理安排</div>
+      <div class="steps">
+        <div class="step now">
+          <div class="when">截至 10月10日</div>
+          <div class="what">现有项目已暂停</div>
+          <div class="detail">除觅伊外，项目均已停下来。</div>
+        </div>
+        <div class="step soon">
+          <div class="when">下半月</div>
+          <div class="what">觅伊全部暂停</div>
+          <div class="detail">唯一仍在收尾的项目。</div>
+        </div>
+        <div class="step soon">
+          <div class="when">本月底</div>
+          <div class="what">项目与人力清理完成</div>
+          <div class="detail">项目和人员一并清完。</div>
+        </div>
+        <div class="step later">
+          <div class="when">至 12月</div>
+          <div class="what">平台事项处理完</div>
+          <div class="detail">平台侧工作延续到 12 月。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="split">
+      <div class="section">
+        <div class="section-title">待收回明细</div>
+        <div class="table-wrap" id="table-in"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">待付明细</div>
+        <div class="table-wrap" id="table-out"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const balance = 2678616.79;
+    const statedEnd = 2019814.99;
+    const inflow = [
+      { name: "客户待回款", note: "9月、10月垫付", v: 2399635.44, color: "#3ddc84" },
+      { name: "AI借款", note: "待收回", v: 644291.64, color: "#4da3ff" },
+      { name: "平台返点", note: "待回", v: 289146.93, color: "#b07aff" },
+      { name: "平台余额", note: "回收", v: 288589.53, color: "#3ecfcf" },
+      { name: "平台押金", note: "待处理", v: 240000, color: "#f5c518" },
+      { name: "注册地址押金", note: "待处理", v: 10000, color: "#8a8a8a" },
+    ];
+    const outflow = [
+      { name: "预付余额", note: "待结算", v: 2431894.14, color: "#ff5c5c" },
+      { name: "授信还款", note: "9月、10月", v: 1966896.45, color: "#f0a040" },
+      { name: "其他费用", note: "报销、社保", v: 131674.76, color: "#b07aff" },
+    ];
+    const inSum = inflow.reduce((a, x) => a + x.v, 0);
+    const outSum = outflow.reduce((a, x) => a + x.v, 0);
+
+    const money = (n) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const wan = (n) => (n / 10000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const pct = (x) => (x * 100).toFixed(1) + "%";
+
+    document.getElementById("stats").innerHTML = [
+      { value: wan(balance) + "万", label: "当前账户余额", cls: "", vs: money(balance) + " 元" },
+      { value: wan(inSum) + "万", label: "待收回余额", cls: "info", vs: "6 项 · " + money(inSum) + " 元" },
+      { value: wan(outSum) + "万", label: "待付费用", cls: "danger", vs: "3 项 · " + money(outSum) + " 元" },
+      { value: wan(statedEnd) + "万", label: "处理完毕后预计余额", cls: "success", vs: money(statedEnd) + " 元" },
+    ].map((s) => `<div class="stat ${s.cls}"><div class="value">${s.value}</div><div class="label">${s.label}</div><div class="vs">${s.vs}</div></div>`).join("");
+
+    (function drawBridge() {
+      const steps = [
+        { name: "当前余额", kind: "start", v: balance },
+        ...inflow.map((x) => ({ name: x.name, kind: "in", v: x.v })),
+        ...outflow.map((x) => ({ name: x.name, kind: "out", v: -x.v })),
+        { name: "处理完毕", kind: "end", v: statedEnd },
+      ];
+      const W = 1040, left = 118, right = W - 78, rowH = 24, top = 22;
+      const H = top + steps.length * rowH + 6;
+      const xMax = 7000000;
+      const x = (v) => left + (Math.max(0, v) / xMax) * (right - left);
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      for (let t = 0; t <= xMax; t += 1000000) {
+        svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${H - 4}" stroke="#2a2a2a"/>`;
+        svg += `<text x="${x(t)}" y="${top - 8}" text-anchor="middle" font-size="10" fill="#8a8a8a">${t === 0 ? "0" : (t / 10000) + "万"}</text>`;
+      }
+      let cum = 0;
+      let prevX = null;
+      let prevY = null;
+      steps.forEach((r, i) => {
+        const cy = top + i * rowH + rowH / 2;
+        let x0, x1, color, label, next;
+        if (r.kind === "start" || r.kind === "end") {
+          next = r.v;
+          x0 = x(0);
+          x1 = x(r.v);
+          color = r.kind === "start" ? "#8a8a8a" : "#4da3ff";
+          label = wan(r.v) + "万";
+        } else {
+          next = cum + r.v;
+          x0 = x(Math.min(cum, next));
+          x1 = x(Math.max(cum, next));
+          color = r.v >= 0 ? "#3ddc84" : "#ff5c5c";
+          label = (r.v >= 0 ? "+" : "−") + wan(Math.abs(r.v)) + "万";
+        }
+        if (prevX != null) {
+          svg += `<line x1="${prevX}" y1="${prevY}" x2="${r.kind === "start" || r.kind === "end" ? x1 : (r.v >= 0 ? x1 : x0)}" y2="${cy}" stroke="#3a3a3a" stroke-dasharray="2 2"/>`;
+        }
+        const endX = r.kind === "start" || r.kind === "end" ? x1 : (r.v >= 0 ? x1 : x0);
+        svg += `<text x="${left - 8}" y="${cy}" text-anchor="end" dominant-baseline="middle" font-size="11" fill="${r.kind === "in" || r.kind === "out" ? "#c8c8c8" : "#f2f2f2"}" font-weight="${r.kind === "in" || r.kind === "out" ? 400 : 600}">${r.name}</text>`;
+        svg += `<rect x="${x0}" y="${cy - 7}" width="${Math.max(1.5, x1 - x0)}" height="14" rx="2" fill="${color}"/>`;
+        svg += `<text x="${x1 + 6}" y="${cy}" dominant-baseline="middle" font-size="10.5" font-weight="600" fill="${color === "#8a8a8a" ? "#f2f2f2" : color}">${label}</text>`;
+        cum = next;
+        prevX = endX;
+        prevY = cy;
+      });
+      document.getElementById("chart-bridge").innerHTML = svg + "</svg>";
+    })();
+
+    function drawBars(el, items, total) {
+      const W = 520, left = 108, right = W - 108, rowH = 28, top = 6;
+      const H = top + items.length * rowH + 4;
+      const max = Math.max(...items.map((x) => x.v));
+      let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+      items.forEach((p, i) => {
+        const y = top + i * rowH;
+        const w = (p.v / max) * (right - left);
+        svg += `<text x="${left - 8}" y="${y + 16}" text-anchor="end" font-size="11" fill="#d4d4d4">${p.name}</text>`;
+        svg += `<rect x="${left}" y="${y + 4}" width="${Math.max(2, w)}" height="16" rx="2" fill="${p.color}"/>`;
+        svg += `<text x="${right + 8}" y="${y + 16}" font-size="11" font-weight="600" fill="#f2f2f2">${wan(p.v)}万 <tspan fill="#8a8a8a" font-weight="500">${pct(p.v / total)}</tspan></text>`;
+      });
+      el.innerHTML = svg + "</svg>";
+    }
+    drawBars(document.getElementById("chart-in"), inflow, inSum);
+    drawBars(document.getElementById("chart-out"), outflow, outSum);
+
+    function table(el, items, total, totalCls) {
+      let html = `<table><thead><tr><th class="left">项目</th><th class="left">说明</th><th>金额（元）</th><th>占比</th></tr></thead><tbody>`;
+      items.forEach((p) => {
+        html += `<tr><td class="left">${p.name}</td><td class="left">${p.note}</td><td>${money(p.v)}</td><td>${pct(p.v / total)}</td></tr>`;
+      });
+      html += `<tr class="${totalCls}"><td class="left">合计</td><td></td><td>${money(total)}</td><td>100%</td></tr></tbody></table>`;
+      el.innerHTML = html;
+    }
+    table(document.getElementById("table-in"), inflow, inSum, "total");
+    table(document.getElementById("table-out"), outflow, outSum, "total");
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("加载失败：" + src));
+        document.head.appendChild(s);
+      });
+    }
+    document.getElementById("export-btn").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = "导出中…";
+      try {
+        if (!window.html2canvas) await loadScript("https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js");
+        const canvas = await html2canvas(document.querySelector(".wrap"), {
+          backgroundColor: "#141414",
+          scale: 2,
+          ignoreElements: (el) => el.id === "export-btn",
+        });
+        const a = document.createElement("a");
+        a.href = canvas.toDataURL("image/png");
+        a.download = "IO资金_2026-10-10.png";
+        a.click();
+      } catch (err) {
+        alert("导出失败，请检查网络后重试。\n" + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "导出图片";
+      }
+    });
+  </script>
+</body>
+</html>

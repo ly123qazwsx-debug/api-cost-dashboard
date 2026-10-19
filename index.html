@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>平台消耗看板</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --surface: #ffffff;
+      --text: #1a1d26;
+      --muted: #6b7280;
+      --stroke: #e5e7eb;
+      --stroke-hover: #c7cdd8;
+      --purple: #6d5efc;
+      --purple-soft: #efeefe;
+      --purple-deep: #5548d9;
+      --shadow: 0 1px 2px rgba(26, 29, 38, 0.04), 0 8px 24px rgba(26, 29, 38, 0.06);
+      --shadow-hover: 0 2px 4px rgba(26, 29, 38, 0.06), 0 12px 28px rgba(109, 94, 252, 0.12);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(1200px 500px at 10% -10%, #ebe9ff 0%, transparent 55%),
+        radial-gradient(900px 400px at 100% 0%, #e8f0ff 0%, transparent 50%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .page {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 40px 24px 48px;
+    }
+
+    /* —— Header —— */
+    header.hero {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 36px;
+      padding: 28px 32px;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .mark {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--purple) 0%, #8b7cff 55%, #a78bfa 100%);
+      box-shadow: 0 4px 12px rgba(109, 94, 252, 0.35);
+      position: relative;
+    }
+    .mark::before,
+    .mark::after {
+      content: "";
+      position: absolute;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 2px;
+    }
+    .mark::before {
+      width: 10px;
+      height: 10px;
+      top: 8px;
+      left: 8px;
+    }
+    .mark::after {
+      width: 14px;
+      height: 6px;
+      bottom: 8px;
+      left: 8px;
+      opacity: 0.75;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+      max-width: 52em;
+    }
+    .meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+      padding: 6px 12px;
+      width: fit-content;
+      background: var(--purple-soft);
+      color: var(--purple-deep);
+      font-size: 0.8rem;
+      font-weight: 500;
+      border-radius: 999px;
+    }
+    .meta .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--purple);
+    }
+
+    /* —— Card grid —— */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    a.card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 22px 22px 20px;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      text-decoration: none;
+      color: inherit;
+      box-shadow: var(--shadow);
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    a.card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--purple), #a78bfa);
+      opacity: 0;
+      transition: opacity 0.18s ease;
+    }
+    a.card:hover {
+      border-color: var(--stroke-hover);
+      box-shadow: var(--shadow-hover);
+      transform: translateY(-2px);
+    }
+    a.card:hover::before { opacity: 1; }
+    a.card:focus-visible {
+      outline: 2px solid var(--purple);
+      outline-offset: 2px;
+    }
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .card-title {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
+    .card-go {
+      flex-shrink: 0;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--purple);
+      background: var(--purple-soft);
+      padding: 4px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    a.card:hover .card-go {
+      background: var(--purple);
+      color: #fff;
+    }
+    .card-desc {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.55;
+      flex: 1;
+    }
+
+
+    .hero-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .btn {
+      appearance: none;
+      border: none;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border-radius: 999px;
+      padding: 10px 16px;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
+    }
+    .btn-primary {
+      background: var(--purple);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(109, 94, 252, 0.35);
+    }
+    .btn-primary:hover {
+      background: var(--purple-deep);
+      transform: translateY(-1px);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--purple-deep);
+      border: 1px solid #d8d4ff;
+    }
+    .btn-ghost:hover { background: var(--purple-soft); }
+    .btn:focus-visible {
+      outline: 2px solid var(--purple);
+      outline-offset: 2px;
+    }
+
+    dialog.update-dialog {
+      border: none;
+      border-radius: 18px;
+      padding: 0;
+      max-width: 440px;
+      width: calc(100% - 32px);
+      box-shadow: 0 20px 50px rgba(26, 29, 38, 0.22);
+    }
+    dialog.update-dialog::backdrop {
+      background: rgba(26, 29, 38, 0.45);
+    }
+    .dialog-inner { padding: 24px 26px 22px; }
+    .dialog-inner h2 {
+      margin: 0 0 8px;
+      font-size: 1.15rem;
+    }
+    .dialog-inner p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .dialog-inner ol {
+      margin: 0 0 18px;
+      padding-left: 1.2em;
+      color: var(--text);
+      font-size: 0.9rem;
+      line-height: 1.65;
+    }
+    .dialog-inner code {
+      font-size: 0.85em;
+      background: var(--purple-soft);
+      color: var(--purple-deep);
+      padding: 1px 6px;
+      border-radius: 6px;
+    }
+    .prompt-box {
+      display: block;
+      width: 100%;
+      margin: 0 0 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      background: #fafafa;
+      font-size: 0.85rem;
+      color: var(--text);
+      resize: none;
+      font-family: inherit;
+      line-height: 1.5;
+    }
+    .dialog-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    /* —— Footer —— */
+    footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--stroke);
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    footer strong { color: #4b5563; font-weight: 600; }
+
+    @media (max-width: 560px) {
+      .page { padding: 24px 16px 36px; }
+      header.hero { padding: 20px; }
+      h1 { font-size: 1.3rem; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="hero-top">
+        <div class="brand">
+          <div class="mark" aria-hidden="true"></div>
+          <h1>平台消耗看板</h1>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="btn-update">今日更新</button>
+        </div>
+      </div>
+      <p class="lead">统一查看各平台消耗与资金看板；数据为静态页面，更新后需重新发布。</p>
+      <div class="meta">
+        <span class="dot" aria-hidden="true"></span>
+        最后数据截止日汇总 · 各看板截至 9/30–10/18（见卡片说明）
+      </div>
+    </header>
+
+    <dialog class="update-dialog" id="update-dialog" aria-labelledby="update-title">
+      <div class="dialog-inner">
+        <h2 id="update-title">今日更新</h2>
+        <p>页面本身不会自动连飞书。按下面三步，让助手把最新数写进看板：</p>
+        <ol>
+          <li>在飞书「AI-平台消耗」填好<strong>截止日</strong>数据并保存。</li>
+          <li>打开 Grok Bot 侧边栏的「API费用看板」。</li>
+          <li>把下面这句话发给助手（把日期改成今天）：</li>
+        </ol>
+        <textarea class="prompt-box" id="update-prompt" rows="3" readonly>更新平台消耗看板到今天（截止日请按飞书表），从飞书拉最新日耗并改对应 HTML。</textarea>
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-ghost" id="btn-copy">复制这句话</button>
+          <button type="button" class="btn btn-primary" id="btn-close">知道了</button>
+        </div>
+      </div>
+    </dialog>
+
+    <main class="grid" aria-label="看板入口">
+      <a class="card" href="IO资金.html">
+        <div class="card-top">
+          <h2 class="card-title">IO资金 · 10月10日</h2>
+          <span class="card-go">打开 →</span>
+        </div>
+        <p class="card-desc">银行账户余额、待收回与待付结算桥，项目清理安排至 12 月，人民币</p>
+      </a>
+
+      <a class="card" href="AI资金看板.html">
+        <div class="card-top">
+          <h2 class="card-title">AI资金 · 9月</h2>
+          <span class="card-go">打开 →</span>
+        </div>
+        <p class="card-desc">2026年8月、9月资金与经营对比，账面、待支付、亏损归因，人民币</p>
+      </a>
+
+      <a class="card" href="API-Cost-Dashboard/API-Cost-Dashboard.html">
+        <div class="card-top">
+          <h2 class="card-title">其余 API 平台</h2>
+          <span class="card-go">打开 →</span>
+        </div>
+        <p class="card-desc">MiniMax、Fal、GRS、RunningHub、速创等 11 个平台日耗与余额，截至 10/18，人民币</p>
+      </a>
+
+      <a class="card" href="机器-看板.html">
+        <div class="card-top">
+          <h2 class="card-title">机器 · 10月 vs 9月</h2>
+          <span class="card-go">打开 →</span>
+        </div>
+        <p class="card-desc">NOVITA、ucloud、易信卡数与费用环比，人民币</p>
+      </a>
+
+      <a class="card" href="Novita-Cost-Dashboard/Novita-Cost-Dashboard.html">
+        <div class="card-top">
+          <h2 class="card-title">NOVITA</h2>
+          <span class="card-go">打开 →</span>
+        </div>
+        <p class="card-desc">NO原始表 LLM / sd / GPU 日耗与环比，截至 10/18，美元</p>
+      </a>
+
+      <a class="card" href="Ucloud-Cost-Dashboard/Ucloud-Cost-Dashboard.html">
+        <div class="card-top">
+          <h2 class="card-title">UCLOUD</h2>
+          <span class="card-go">打开 →</span>
+        </div>
+        <p class="card-desc">UCloud GPU 按需与固定机器费用，截至 9/30，人民币</p>
+      </a>
+
+      <a class="card" href="OpenRouter-Cost-Dashboard/OpenRouter-Cost-Dashboard.html">
+        <div class="card-top">
+          <h2 class="card-title">OpenRouter</h2>
+          <span class="card-go">打开 →</span>
+        </div>
+        <p class="card-desc">Flux / LLM(OpenRouter) / LLM(Novita) 日耗、余额与环比，截至 10/18，美元</p>
+      </a>
+
+      <a class="card" href="AWS-Cost-Dashboard/AWS-Cost-Dashboard.html">
+        <div class="card-top">
+          <h2 class="card-title">AWS</h2>
+          <span class="card-go">打开 →</span>
+        </div>
+        <p class="card-desc">A原始表各服务日耗与环比，截至 10/17，美元</p>
+      </a>
+    </main>
+
+    <footer>
+      <strong>本地预览：</strong>用浏览器打开本页即可。<br />
+      <strong>GitHub Pages 长期托管</strong>（已发布）：<a href="https://ly123qazwsx-debug.github.io/api-cost-dashboard/">https://ly123qazwsx-debug.github.io/api-cost-dashboard/</a>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var dialog = document.getElementById("update-dialog");
+      var openBtn = document.getElementById("btn-update");
+      var closeBtn = document.getElementById("btn-close");
+      var copyBtn = document.getElementById("btn-copy");
+      var promptEl = document.getElementById("update-prompt");
+      if (!dialog || !openBtn) return;
+
+      openBtn.addEventListener("click", function () {
+        if (typeof dialog.showModal === "function") dialog.showModal();
+        else dialog.setAttribute("open", "");
+      });
+      closeBtn.addEventListener("click", function () {
+        if (typeof dialog.close === "function") dialog.close();
+        else dialog.removeAttribute("open");
+      });
+      copyBtn.addEventListener("click", async function () {
+        var text = promptEl.value;
+        try {
+          await navigator.clipboard.writeText(text);
+          copyBtn.textContent = "已复制";
+          setTimeout(function () { copyBtn.textContent = "复制这句话"; }, 1600);
+        } catch (e) {
+          promptEl.select();
+          document.execCommand("copy");
+          copyBtn.textContent = "已复制";
+          setTimeout(function () { copyBtn.textContent = "复制这句话"; }, 1600);
+        }
+      });
+      dialog.addEventListener("click", function (e) {
+        if (e.target === dialog) dialog.close();
+      });
+    })();
+  </script>
+</body>
+</html>
